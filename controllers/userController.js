@@ -1,6 +1,6 @@
 // const { Users, Shop } = require('../models'); // Import User and Shop models
 const User = require('../models/Users');
-const Shop = require('../models/shops');
+const Shop = require('../models/Shops');
 const Order = require('../models/Orders');
 const OrderItem = require('../models/OrderItems');
 const Item = require('../models/Items'); 
