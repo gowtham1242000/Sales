@@ -249,10 +249,10 @@ exports.deleteOrder = async (req,res) =>{
 };
 
 
-exports.getProfile = async (req,res) =>{
+/*exports.getProfile = async (req,res) =>{
 console.log("req.body-----",req.params);
 const id =req.params.id;
 const user =User.findAll({where{id:id}})
 console.log("profile------",user)
 return
-}
+}*/
