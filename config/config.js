@@ -16,8 +16,8 @@ const operatorsAliases = {
     $in    : Op.in,
     $cast  : (value, type) => Sequelize(`CAST(${value} AS ${type})`)
 }
-const sequelize = new Sequelize('mysale', 'myusers', 'mypass', {
-  host: 'localhost',
+const sequelize = new Sequelize('mysale', 'myusers', 'wglKHqsVfqW59ciIkqZ4nne0OpqS289Y', {
+  host: 'dpg-co5qpv6v3ddc739556dg-a.oregon-postgres.render.com',
   dialect: 'postgres',
   port: '5432',
   logging : false,
