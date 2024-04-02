@@ -9,7 +9,7 @@ router.put('/shop/:id',userController.updateShop);
 router.delete('/shop/:id',userController.deleteShop);
 router.delete('/order/:id',userController.deleteOrder);
 router.put('/order/:id', userController.updateOrder);
-router.get('/profile/:id', userController.getProfile);
+//router.get('/profile/:id', userController.getProfile);
 
 
 module.exports = router;
