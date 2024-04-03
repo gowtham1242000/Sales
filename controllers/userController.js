@@ -13,7 +13,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const secretKey = crypto.randomBytes(32).toString('hex');
-
+const shopImage ='/etc/ec/data/shopImage/';
+const shopImagePath ='/shopImage';
 
 exports.userSignin = async (req,res) => {
     try{
@@ -35,7 +36,7 @@ exports.userSignin = async (req,res) => {
 
 exports.createShop = async (req, res) => {
     const id = req.params.id;
-    try {
+   /* try {
         const { shopname, location, address, emailId, contectnumber } = req.body; // Corrected variable name
         console.log("shopname-----", shopname);
         
@@ -61,11 +62,56 @@ exports.createShop = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
+    }*/
+const image = req.files.shopImage;
+//    const id = req.params.id;
+    console.log("image-----",image)
+
+    try {
+        const { shopname, location, address, emailId, contectnumber } = req.body; // Corrected variable name
+        console.log("shopname-----", shopname);
+        
+        // Find the user by ID
+        const user = await User.findOne({ where: { id: id } });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" }); // Updated status code and message
+        }
+
+        var finalName =shopname.replace(/\s+/g, '_');
+        const desImageDir = `${shopImage}${finalName}`;
+
+        if (!fs.existsSync(desImageDir)) {
+            fs.mkdirSync(desImageDir, { recursive: true });
+        }
+
+        var desImageUrl = '';
+        fs.writeFileSync(`${desImageDir}/${req.files.shopImage.name}`,req.files.shopImage.data, 'binary');
+        destinationImgUrl = `http://localhost${shopImagePath}/${finalName}/${req.files.shopImage.name}`;
+
+        // Create a new shop associated with the user
+        const shop = await Shop.create({
+            shopname,
+            location,
+            address,
+            emailId,
+            contectnumber,
+            shopImage:destinationImgUrl,
+            userId: user.id // Corrected capitalization of 'UserId'
+        });
+        
+        // Return success response
+        return res.status(201).json({ message: "Shop created successfully", shop }); // Updated response message
+        
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
     }
+
 }
 
+
 exports.updateShop = async (req, res) => {
-    const shopId = req.params.id; // Corrected variable name
+    /*const shopId = req.params.id; // Corrected variable name
     try {
         const { shopname, location, address, emailId, contectnumber, userId } = req.body;
         
@@ -94,6 +140,65 @@ exports.updateShop = async (req, res) => {
 
         if(userId !== undefined){
         	shop.userId =userId
+        }
+
+console.log("shop----",shop)
+        // Save the updated shop
+        await shop.save();
+
+        // Return success response
+        return res.status(200).json({ message: "Shop updated successfully", shop });
+        
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }*/
+
+const shopId = req.params.id; // Corrected variable name
+    try {
+        const { shopname, location, address, emailId, contectnumber, userId } = req.body;
+        
+        // Find the shop by ID
+        const shop = await Shop.findOne({ where: { id: shopId } });
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        if (shopname !== undefined) {
+            shop.name = shopname;
+        }
+        if (location !== undefined) {
+            shop.location =location;
+        }
+        if (address !== undefined) {
+             shop.address =address;
+        }
+        if (emailId !== undefined) {
+        	shop.emailId =emailId;
+        	}	
+
+        if (contectnumber !== undefined) {
+            shop.contectnumber = contectnumber;
+        }
+
+        if(userId !== undefined){
+        	shop.userId =userId
+        }
+        if(req.files){
+            var finalName =shop.shopname.replace(/\s+/g, '_');
+            const desImageDir = `${shopImage}${finalName}`;
+
+            if (!fs.existsSync(desImageDir)) {
+                console.log("Directory does not exist");
+                return res.status(404).json({ message: 'Directory does not exist' });
+            }
+            const imagePath = `${desImageDir}/${req.files.shopImage.name}`;
+            if (fs.existsSync(imagePath)) {
+                // Delete the old image file
+                fs.unlinkSync(imagePath);
+            }
+            fs.writeFileSync(imagePath, req.files.shopImage.data, 'binary');
+            shop.shopImage = `http://localhost${shopImagePath}/${finalName}/${req.files.shopImage.name}`;
         }
 
 console.log("shop----",shop)
@@ -384,7 +489,7 @@ exports.getOrders = async (req,res) =>{
             include: User});
         console.log(orders);
         //return
-        res.json(orders);
+        res.json({message:'Getting Orders data Successfully',orders});
         //return
     }catch(error){
         console.error('Error fetching data from Order tables:', error);
