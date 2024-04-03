@@ -7,7 +7,7 @@ const shop = sequelize.define('Shops', {
   location:DataTypes.STRING,
   address:DataTypes.STRING,
   emailId:DataTypes.STRING,
-  contectnumber:DataTypes.INTEGER,
+  contectnumber:DataTypes.STRING,
   userId:DataTypes.INTEGER
 });
 

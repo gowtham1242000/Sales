@@ -18,7 +18,7 @@ const ItemPath='/etc/ec/data/Items/';
 const URLpathI ='/Items';
 //admin signup
 exports.createAdmin = async (req,res) => {
-
+console.log("req.body---------",req.body);
 	try{
 
 		const {username,password}=req.body;
