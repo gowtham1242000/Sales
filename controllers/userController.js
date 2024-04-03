@@ -36,33 +36,6 @@ exports.userSignin = async (req,res) => {
 
 exports.createShop = async (req, res) => {
     const id = req.params.id;
-   /* try {
-        const { shopname, location, address, emailId, contectnumber } = req.body; // Corrected variable name
-        console.log("shopname-----", shopname);
-        
-        // Find the user by ID
-        const user = await User.findOne({ where: { id: id } });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" }); // Updated status code and message
-        }
-
-        // Create a new shop associated with the user
-        const shop = await Shop.create({
-            shopname,
-            location,
-            address,
-            emailId,
-            contectnumber, 
-            userId: user.id // Corrected capitalization of 'UserId'
-        });
-        
-        // Return success response
-        return res.status(201).json({ message: "Shop created successfully", shop }); // Updated response message
-        
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }*/
 const image = req.files.shopImage;
 //    const id = req.params.id;
     console.log("image-----",image)
@@ -111,49 +84,6 @@ const image = req.files.shopImage;
 
 
 exports.updateShop = async (req, res) => {
-    /*const shopId = req.params.id; // Corrected variable name
-    try {
-        const { shopname, location, address, emailId, contectnumber, userId } = req.body;
-        
-        // Find the shop by ID
-        const shop = await Shop.findOne({ where: { id: shopId } });
-        if (!shop) {
-            return res.status(404).json({ message: "Shop not found" });
-        }
-
-        if (shopname !== undefined) {
-            shop.name = shopname;
-        }
-        if (location !== undefined) {
-            shop.location =location;
-        }
-        if (address !== undefined) {
-             shop.address =address;
-        }
-        if (emailId !== undefined) {
-        	shop.emailId =emailId;
-        	}	
-
-        if (contectnumber !== undefined) {
-            shop.contectnumber = contectnumber;
-        }
-
-        if(userId !== undefined){
-        	shop.userId =userId
-        }
-
-console.log("shop----",shop)
-        // Save the updated shop
-        await shop.save();
-
-        // Return success response
-        return res.status(200).json({ message: "Shop updated successfully", shop });
-        
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }*/
-
 const shopId = req.params.id; // Corrected variable name
     try {
         const { shopname, location, address, emailId, contectnumber, userId } = req.body;
@@ -238,9 +168,9 @@ exports.deleteShop = async (req, res) => {
 
 
 exports.createOrder = async (req, res) => {
-    const id = req.params.id;
+	const id = req.params.id;
     try {
-        const { expecteddate, shopId, yourearing, totalAmount, itemId, quantity } = req.body;
+        const { expecteddate, shopId, orderType, status, yourearing, totalAmount, itemId, quantity } = req.body;
         const user =await User.findOne({ where:{id:id}});
         // Verify that the shop exists
         const shop = await Shop.findOne({ where: { id: shopId } });
@@ -265,6 +195,8 @@ exports.createOrder = async (req, res) => {
             shopId,
             yourearing,
             totalAmount,
+            orderType,
+            status,
             shopName: shop.shopname,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -309,7 +241,7 @@ exports.createOrder = async (req, res) => {
 exports.updateOrder = async (req,res) => {
 	try {
         const orderId = req.params.id;
-        const { expecteddate, shopId, yourearing, totalAmount, itemId, quantity } = req.body;
+        const { expecteddate, orderType, status, shopId, userId, yourearing, totalAmount, itemId, quantity } = req.body;
 
         // Verify that the order exists
         const order = await Order.findByPk(orderId);
@@ -317,15 +249,37 @@ exports.updateOrder = async (req,res) => {
             return res.status(404).json({ message: 'Order not found' });
         }
 
-        // Update order details
-        await order.update({
-            expecteddate,
-            shopId,
-            userId,
-            yourearing,
-            totalAmount,
-            updatedAt: new Date()
-        });
+        if (expecteddate !== undefined) {
+    order.expecteddate = expecteddate;
+}
+
+if (shopId !== undefined) {
+    order.shopId = shopId;
+}
+
+if (userId !== undefined) {
+    order.userId = userId;
+}
+
+if (orderType !== undefined) {
+    order.orderType = orderType;
+}
+
+if (status !== undefined) {
+    order.status = status;
+}
+
+if (yourearing !== undefined) {
+    order.yourearing = yourearing;
+}
+
+if (totalAmount !== undefined) {
+    order.totalAmount = totalAmount;
+}
+
+order.updatedAt = new Date(); 
+
+await order.save();
 
         // Update order items
         for (let i = 0; i < itemId.length; i++) {
@@ -340,7 +294,7 @@ exports.updateOrder = async (req,res) => {
                 where: { orderId, itemId: itemId[i] },
                 defaults: {
                     orderId,
-                    userId,
+//                    userId,
                     itemId: itemId[i],
                     quantity: quantity[i],
                     yourearing,
