@@ -18,5 +18,8 @@ router.get('/getOrderslist/:userId', userController.getOrders);
 router.get('/getshops', userController.getShops);
 router.get('/getItems', userController.getItems);
 router.get('/getshopsDetails/:id', userController.getShopsDetails);
+router.get('/searchitem', userController.searchitem);
+router.get('/searchorder', userController.searchorder);
+router.get('/searchshop', userController.searchshop);
 
 module.exports = router;

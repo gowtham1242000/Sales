@@ -514,7 +514,7 @@ exports.getShopsDetails = async (req, res) => {
 }
 
 
-/*export.searchitem =async (req,res) => {
+exports.searchitem =async (req,res) => {
 try {
         // Extract search query parameters from the request
         const { keyword } = req.query;
@@ -538,6 +538,55 @@ try {
         console.error('Error performing search:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
-}   */
+}   
 
 
+exports.searchorder =async (req,res) => {
+try {
+        // Extract search query parameters from the request
+        const { keyword } = req.query;
+
+        // Define search criteria
+        const searchCriteria = {
+            [Op.or]: [
+                { shopName: { [Op.iLike]: `%${keyword}%` } }
+            ]
+        };
+
+        // Perform the search using Sequelize
+        const searchResults = await Order.findAll({
+            where: searchCriteria
+        });
+
+        // Send the search results as a response
+        res.json(searchResults);
+    } catch (error) {
+        console.error('Error performing search:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+exports.searchshop =async (req,res) => {
+try {
+        // Extract search query parameters from the request
+        const { keyword } = req.query;
+
+        // Define search criteria
+        const searchCriteria = {
+            [Op.or]: [
+                { shopname: { [Op.iLike]: `%${keyword}%` } }
+            ]
+        };
+
+        // Perform the search using Sequelize
+        const searchResults = await Shop.findAll({
+            where: searchCriteria
+        });
+
+        // Send the search results as a response
+        res.json(searchResults);
+    } catch (error) {
+        console.error('Error performing search:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}   
