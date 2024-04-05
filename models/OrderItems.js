@@ -7,6 +7,7 @@ const Order =require('./Orders');
 const orderItem = sequelize.define('OrderItems', {
   orderId:DataTypes.INTEGER,
   itemId:DataTypes.INTEGER,
+  orderNo:DataTypes.STRING,
  // quantity:DataTypes.INTEGER,
   yourearing:DataTypes.INTEGER,
   totalAmount:DataTypes.FLOAT,

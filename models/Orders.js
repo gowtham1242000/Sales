@@ -8,6 +8,7 @@ const order = sequelize.define('Orders', {
   shopId:DataTypes.INTEGER,
   shopName:DataTypes.STRING,
   userId:DataTypes.INTEGER,
+  orderNo:DataTypes.STRING,
   yourearing:DataTypes.INTEGER,
   totalAmount:DataTypes.FLOAT,
   status:DataTypes.STRING,

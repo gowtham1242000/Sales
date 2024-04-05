@@ -98,7 +98,7 @@ exports.createItem =async (req,res) =>{
 
       	var desImageUrl = '';
         fs.writeFileSync(`${desImageDir}/${req.files.image.name}`,req.files.image.data, 'binary');
-        destinationImgUrl = `http://localhost${URLpathI}/${finalName}/${req.files.image.name}`;
+        destinationImgUrl = `http://64.227.139.72${URLpathI}/${finalName}/${req.files.image.name}`;
       	const item = await Item.create({
         	name:name,
         	image:destinationImgUrl,
@@ -153,7 +153,7 @@ exports.updateItem = async (req,res) => {
             fs.unlinkSync(imagePath);
         }
         fs.writeFileSync(imagePath, req.files.image.data, 'binary');
-        item.image = `http://localhost${URLpathI}/${finalName}/${req.files.image.name}`;
+        item.image = `http://64.227.139.72${URLpathI}/${finalName}/${req.files.image.name}`;
     }
 		await item.save();
 		res.status(201).json({message:"created successfully",item});

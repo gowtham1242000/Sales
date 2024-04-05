@@ -59,7 +59,7 @@ const image = req.files.shopImage;
 
         var desImageUrl = '';
         fs.writeFileSync(`${desImageDir}/${req.files.shopImage.name}`,req.files.shopImage.data, 'binary');
-        destinationImgUrl = `http://localhost${shopImagePath}/${finalName}/${req.files.shopImage.name}`;
+        destinationImgUrl = `http://64.227.139.72${shopImagePath}/${finalName}/${req.files.shopImage.name}`;
 
         // Create a new shop associated with the user
         const shop = await Shop.create({
@@ -128,7 +128,7 @@ const shopId = req.params.id; // Corrected variable name
                 fs.unlinkSync(imagePath);
             }
             fs.writeFileSync(imagePath, req.files.shopImage.data, 'binary');
-            shop.shopImage = `http://localhost${shopImagePath}/${finalName}/${req.files.shopImage.name}`;
+            shop.shopImage = `http://64.227.139.72${shopImagePath}/${finalName}/${req.files.shopImage.name}`;
         }
 
 console.log("shop----",shop)
@@ -170,7 +170,7 @@ exports.deleteShop = async (req, res) => {
 exports.createOrder = async (req, res) => {
 	const id = req.params.id;
     try {
-        const { expecteddate, shopId, orderType, status, yourearing, totalAmount, itemId, quantity } = req.body;
+        const { expecteddate, shopId, orderType, orderNo, status, yourearing, totalAmount, itemId, quantity } = req.body;
         const user =await User.findOne({ where:{id:id}});
         // Verify that the shop exists
         const shop = await Shop.findOne({ where: { id: shopId } });
@@ -193,6 +193,7 @@ exports.createOrder = async (req, res) => {
             expecteddate,
             userId:id,
             shopId,
+	    orderNo,
             yourearing,
             totalAmount,
             orderType,
@@ -219,6 +220,7 @@ exports.createOrder = async (req, res) => {
                 userId: user.id,
                 itemId: itemId[i],
                 quantity: quantity[i],
+		orderNo: orderNo,
                 yourearing: yourearing, // Assuming this applies to all items
                 totalAmount: totalAmount, // Assuming this applies to all items
                 createdAt: new Date(),
@@ -241,7 +243,7 @@ exports.createOrder = async (req, res) => {
 exports.updateOrder = async (req,res) => {
 	try {
         const orderId = req.params.id;
-        const { expecteddate, orderType, status, shopId, userId, yourearing, totalAmount, itemId, quantity } = req.body;
+        const { expecteddate, orderType, status, shopId, orderNo, userId, yourearing, totalAmount, itemId, quantity } = req.body;
 
         // Verify that the order exists
         const order = await Order.findByPk(orderId);
@@ -263,6 +265,10 @@ if (userId !== undefined) {
 
 if (orderType !== undefined) {
     order.orderType = orderType;
+}
+
+if (orderNo !== undefined) {
+    order.orderNo = orderNo;
 }
 
 if (status !== undefined) {
@@ -298,6 +304,7 @@ await order.save();
                     itemId: itemId[i],
                     quantity: quantity[i],
                     yourearing,
+		    orderNo,
                     totalAmount,
                     createdAt: new Date(),
                     updatedAt: new Date()
@@ -309,6 +316,7 @@ await order.save();
                 await orderItem.update({
                     quantity: quantity[i],
                     yourearing,
+                    orderNo,
                     totalAmount,
                     updatedAt: new Date()
                 });
@@ -410,7 +418,7 @@ console.log("user----",user);
                 fs.unlinkSync(imagePath);
             }
             fs.writeFileSync(imagePath, req.files.userProfileImage.data, 'binary');
-            user.userProfileImage = `http://localhost${userProfile}${finalName}/${req.files.userProfileImage.name}`;
+            user.userProfileImage = `http://64.227.139.72${userProfile}${finalName}/${req.files.userProfileImage.name}`;
         }
         await user.save();
         res.status(201).json({message:"created successfully",user});
@@ -470,6 +478,38 @@ exports.getShops = async (req,res) =>{
         res.json(shops);
     }catch(error){
         res.status(500).json({message:'Error from getting the shop datas'})
+    }
+}
+
+
+
+exports.getShopsDetails = async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Find shop details by id
+        const shop = await Shop.findOne({ where: { id: id } });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        // Find all orders associated with the shop
+        const orders = await Order.findAll({ where: { shopId: id } });
+
+        if (orders.length === 0) {
+            return res.status(404).json({ message: "No orders found for this shop" });
+        }
+
+        // Iterate through each order to fetch order items
+        const ordersWithItems = await Promise.all(orders.map(async (order) => {
+            const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
+            return { order, orderItems };
+        }));
+
+        return res.status(200).json({ shop, ordersWithItems });
+    } catch (error) {
+        console.log("error------", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
 

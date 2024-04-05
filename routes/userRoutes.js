@@ -17,5 +17,6 @@ router.get('/getshop/item', userController.getshopitem);
 router.get('/getOrderslist/:userId', userController.getOrders);
 router.get('/getshops', userController.getShops);
 router.get('/getItems', userController.getItems);
+router.get('/getshopsDetails/:id', userController.getShopsDetails);
 
 module.exports = router;
