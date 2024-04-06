@@ -9,6 +9,7 @@ router.post('/createUser/:id', adminController.createUser);
 router.post('/createItem', adminController.createItem);
 router.put('/updateItem/:id', adminController.updateItem);
 router.delete('/deleteItem/:id', adminController.deleteItem);
+router.post('/createStatus', adminController.createStatus);
 
 
 

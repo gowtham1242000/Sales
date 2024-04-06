@@ -13,7 +13,7 @@ const exec = util.promisify(require('child_process').exec);
 const User = require('../models/Users');
 const Shop = require('../models/Shops');
 const Item = require('../models/Items');
-
+const Status = require('../models/Status');
 const ItemPath='/etc/ec/data/Items/';
 const URLpathI ='/Items';
 //admin signup
@@ -187,3 +187,14 @@ exports.deleteItem = async (req, res) => {
     }
 }
 
+exports.createStatus =async (req,res) =>{
+	try{
+		const {status} =req.body;
+		const sts = await Status.create({
+			status:status
+		})
+		res.status(200).json({message:'The status created successfully',status})
+	}catch(error){
+		res.status(500).json({message:'Internal server Error'})
+	}
+}

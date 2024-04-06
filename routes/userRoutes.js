@@ -21,5 +21,8 @@ router.get('/getshopsDetails/:id', userController.getShopsDetails);
 router.get('/searchitem', userController.searchitem);
 router.get('/searchorder', userController.searchorder);
 router.get('/searchshop', userController.searchshop);
+router.get('/getStatus', userController.getStatus);
+router.get('/getearning',userController.getEarning);
+router.get('/getDeliveries',userController.getDeliveries);
 
 module.exports = router;

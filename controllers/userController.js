@@ -6,7 +6,8 @@ const User = require('../models/Users');
 const Shop = require('../models/Shops');
 const Order = require('../models/Orders');
 const OrderItem = require('../models/OrderItems');
-const Item = require('../models/Items'); 
+const Item = require('../models/Items');
+const Status = require('../models/Status'); 
 const userProfile='/etc/ec/data/ProfilePath/';
 const profilePath ='/ProfilePath';
 const bcrypt = require('bcrypt');
@@ -174,7 +175,9 @@ exports.createOrder = async (req, res) => {
         const user =await User.findOne({ where:{id:id}});
         // Verify that the shop exists
         const shop = await Shop.findOne({ where: { id: shopId } });
-        if (!user) {
+        const sts = await Status.findAll({where:{id:status}})
+	
+	if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
@@ -187,8 +190,9 @@ exports.createOrder = async (req, res) => {
             console.log("Invalid itemId or quantity format");
             return res.status(400).json({ message: "Invalid itemId or quantity format" });
         }
-
-        // Create the order
+	
+        var data = sts[0].dataValues.status;
+	// Create the order
         const order = await Order.create({
             expecteddate,
             userId:id,
@@ -197,7 +201,7 @@ exports.createOrder = async (req, res) => {
             yourearing,
             totalAmount,
             orderType,
-            status,
+            status:data,
             shopName: shop.shopname,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -244,7 +248,8 @@ exports.updateOrder = async (req,res) => {
 	try {
         const orderId = req.params.id;
         const { expecteddate, orderType, status, shopId, orderNo, userId, yourearing, totalAmount, itemId, quantity } = req.body;
-
+	const sts = await Status.findAll({where:{id:status}});
+	var data = sts[0].dataValues.status;
         // Verify that the order exists
         const order = await Order.findByPk(orderId);
         if (!order) {
@@ -272,7 +277,7 @@ if (orderNo !== undefined) {
 }
 
 if (status !== undefined) {
-    order.status = status;
+    order.status = data;
 }
 
 if (yourearing !== undefined) {
@@ -359,13 +364,15 @@ exports.getProfile = async (req,res) =>{
 console.log("req.body-----",req.params);
  try{
 const id =req.params.id;
+const orderCount =await Order.count({where:{userId:id}});
+const totalEarnings = await Order.sum('yourearing', { where: { userId: id } });
+const update =await User.update({ totalOrderPlaced: orderCount,myEarning: totalEarnings },{ where: {id:id}});
 const user =await User.findAll({ where :{ id:id }});
-console.log("profile------",user[0])
 var userData ={
 	name:user[0].username,
             role: user[0].role,
-            myearning: user[0].myearning,
-            orders: user[0].orders, // Assuming orders is an array of order objects
+            myearning: user[0].myEarning,
+            orders: user[0].totalOrderPlaced, // Assuming orders is an array of order objects
             userProfileImage:user[0].userProfileImage,
             phonenumber: user[0].phonenumber,
             emailId: user[0].emailId
@@ -418,7 +425,7 @@ console.log("user----",user);
                 fs.unlinkSync(imagePath);
             }
             fs.writeFileSync(imagePath, req.files.userProfileImage.data, 'binary');
-            user.userProfileImage = `http://64.227.139.72${userProfile}${finalName}/${req.files.userProfileImage.name}`;
+            user.userProfileImage = `http://64.227.139.72${profilePath}/${finalName}/${req.files.userProfileImage.name}`;
         }
         await user.save();
         res.status(201).json({message:"created successfully",user});
@@ -590,3 +597,70 @@ try {
         res.status(500).json({ message: 'Internal server error' });
     }
 }   
+
+exports.getStatus =async (req,res) =>{
+    try{
+        const status = await Status.findAll();
+        console.log("status------",status);
+        res.status(200).json({message:'This are the status details',status})
+    }catch(error){
+        console.log("getstatus----error",error)
+    }
+}
+
+exports.getEarning = async (req, res) => {
+    try {
+        const userId = req.query.userId;
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+
+        // Prepare the filter object based on the provided parameters
+        const filter = {
+            userId: userId
+        };
+        
+        // Add date range criteria if both startDate and endDate are provided
+        if (startDate && endDate) {
+            filter.createdAt = { $gte: startDate, $lte: endDate };
+        }
+
+        // Query the database for orders that match the given userId and fall within the date range (if provided)
+        const orders = await Order.findAll({
+            where: filter
+        });
+
+        const responseData = orders.map(order => ({
+            totalAmount: order.totalAmount,
+            updatedAt: order.updatedAt,
+            orderNo: order.orderNo
+        }));
+
+        // Send the response
+        res.json(responseData);
+    } catch (error) {
+        // Handle error
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+};
+
+
+exports.getDeliveries = async (req,res) =>{
+    try {
+        // Find all orders with status Delivered or Invoiced
+        const orders = await Order.findAll({
+            where: {
+                status: ['Delivered', 'Invoiced']
+            },
+            attributes: ['orderNo', 'status', 'totalAmount', 'updatedAt', 'shopName']
+        });
+
+        // Send the response
+        res.json(orders);
+    } catch (error) {
+        // Handle error
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+
+}
