@@ -157,7 +157,7 @@ exports.createShop = async (req, res) => {
 }
 
 
-
+/*
 exports.updateShop = async (req, res) => {
 const shopId = req.params.id; // Corrected variable name
     try {
@@ -218,6 +218,94 @@ console.log("shop----",shop)
         res.status(500).json({ message: 'Internal server error' });
     }
 }
+*/
+exports.updateShop = async (req, res) => {
+    const shopId = req.params.id;
+
+    try {
+        // Find the shop by ID
+        const shop = await Shop.findByPk(shopId);
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        // Update shop details if provided in the request body
+        const { shopname, location, address, emailId, contectnumber } = req.body;
+        if (shopname) {
+            shop.shopname = shopname;
+        }
+        if (location) {
+            shop.location = location;
+        }
+        if (address) {
+            shop.address = address;
+        }
+        if (emailId) {
+            shop.emailId = emailId;
+        }
+        if (contectnumber) {
+            shop.contectnumber = contectnumber;
+        }
+
+        // Handle image update if a new image is provided
+        if (req.files && req.files.shopImage) {
+            const image = req.files.shopImage;
+
+            // Create directory for original images if it doesn't exist
+            const originalImageDir = `${shopImage}/original`;
+            if (!fs.existsSync(originalImageDir)) {
+                fs.mkdirSync(originalImageDir, { recursive: true });
+            }
+
+            // Save original image
+            const originalImagePath = `${originalImageDir}/${image.name}`;
+            await image.mv(originalImagePath);
+
+            // Create thumbnails directory if it doesn't exist
+            const thumbnailDir = `${shopImage}/thumbnails`;
+            if (!fs.existsSync(thumbnailDir)) {
+                fs.mkdirSync(thumbnailDir, { recursive: true });
+            }
+
+            // Determine file extension and resize accordingly
+            const extension = path.extname(image.name).toLowerCase();
+            const thumbnailImagePath = `${thumbnailDir}/${path.basename(image.name, extension)}.webp`;
+            let pipeline;
+
+            if (extension === '.png' || extension === '.jpg' || extension === '.jpeg') {
+                pipeline = sharp(originalImagePath)
+                    .resize({ width: 200, height: 200 })
+                    .toFormat('webp') // Convert to WebP format
+                    .webp({ quality: 80 }) // Set WebP quality
+                    .toFile(thumbnailImagePath);
+            } else {
+                throw new Error('Unsupported file format');
+            }
+
+            // Create thumbnail image
+            await pipeline;
+
+            // Generate URL for original and thumbnail images
+            const originalImageUrl = `http://64.227.139.72${shopImagePath}/original/${image.name}`;
+            const thumbnailImageUrl = `http://64.227.139.72${shopImagePath}/thumbnails/${path.basename(image.name, extension)}.webp`;
+
+            // Update shop image URLs
+            shop.shopImage = originalImageUrl;
+            shop.thumbnailimage = thumbnailImageUrl;
+        }
+
+        // Save the updated shop
+        await shop.save();
+
+        // Return success response
+        return res.status(200).json({ message: "Shop updated successfully", shop });
+        
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
 
 
 exports.deleteShop = async (req, res) => {
@@ -550,7 +638,7 @@ exports.getshopitem = async (req,res) => {
         res.json({message:'Getting Orders data Successfully',orders:formattedOrders});
         //return
     }catch(error){
-        console.error('Error fetching data from Order tables:', error);
+        	console.error('Error fetching data from Order tables:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 
@@ -560,10 +648,14 @@ exports.getOrders = async (req, res) => {
     try {
         const userId = req.params.userId;
         const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
-        const pageSize = 6; // Number of records per page
+        const pageSize = 10; // Number of records per page
 
         // Calculate the offset based on the page number and page size
         const offset = (page - 1) * pageSize;
+	const totalCount = await Order.count({ where: { userId: userId } });
+
+        // Calculate the total number of pages
+        const totalPages = Math.ceil(totalCount / pageSize);
 
         const orders = await Order.findAll({
             where: { userId: userId },
@@ -578,9 +670,9 @@ exports.getOrders = async (req, res) => {
             createdAt: new Date(order.createdAt).toISOString().split('T')[0],
             updatedAt: new Date(order.updatedAt).toISOString().split('T')[0]
         }));
-
+	
         // Send the paginated and formatted orders as a response
-        res.json({ message: 'Getting Orders data successfully', orders: formattedOrders });
+        res.json({ message: 'Getting Orders data successfully', orders: formattedOrders, totalPages: totalPages, totalOrders: totalCount });
     } catch (error) {
         console.error('Error fetching data from Order tables:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -605,18 +697,22 @@ exports.getItems = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         
         // Define the number of items per page
-        const itemsPerPage = 6;
+        const itemsPerPage = 12;
 
         // Calculate the offset
         const offset = (page - 1) * itemsPerPage;
+ 	
+	const totalCount = await Item.count();
 
+        // Calculate total pages
+        const totalPages = Math.ceil(totalCount / itemsPerPage);
         // Find items with pagination
         const items = await Item.findAll({
             offset: offset,
             limit: itemsPerPage
         });
 
-        res.json(items);
+        res.json({message:'The Items getting sucessfully',items: items, totalPages: totalPages, totalCount: totalCount});
     } catch (error) {
         console.error('Error fetching data from Items tables:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -641,7 +737,10 @@ exports.getShops = async (req, res) => {
         
         // Define the number of shops per page
         const shopsPerPage = 6;
+	const totalCount = await Shop.count();
 
+        // Calculate the total number of pages
+        const totalPages = Math.ceil(totalCount / shopsPerPage)
         // Calculate the offset
         const offset = (page - 1) * shopsPerPage;
 
@@ -651,7 +750,7 @@ exports.getShops = async (req, res) => {
             limit: shopsPerPage
         });
 
-        res.json(shops);
+        res.json({message:'Getting sucessfully the Shop details',shops: shops, totalPages: totalPages, totalShops: totalCount});
     } catch (error) {
         console.error('Error fetching data from Shops table:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -814,7 +913,7 @@ exports.getStatus =async (req,res) =>{
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };*/
-exports.getEarning = async (req, res) => {
+/*exports.getEarning = async (req, res) => {
     try {
         const userId = req.query.userId;
         const startDate = req.query.startDate;
@@ -845,12 +944,18 @@ exports.getEarning = async (req, res) => {
             offset: offset,
             limit: ordersPerPage
         });
+	const totalPages = Math.ceil(orders.count / ordersPerPage);
 
-        const responseData = orders.map(order => ({
+    // Calculate total earnings
+    const totalEarnings = orders.rows.reduce((total, order) => total + order.totalAmount, 0);
+
+        const responseData = {orders:orders.rows.map(order => ({
             totalAmount: order.totalAmount,
             updatedAt: order.updatedAt,
             orderNo: order.orderNo
-        }));
+        })),totalOrders: orders.count,
+        totalPages: totalPages,
+        totalEarnings: totalEarnings};
 
         // Send the response
         res.json(responseData);
@@ -859,7 +964,7 @@ exports.getEarning = async (req, res) => {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
-};
+};*/
 
 
 /*exports.getDeliveries = async (req,res) =>{
@@ -892,9 +997,134 @@ exports.getEarning = async (req, res) => {
 
 }*/
 
-exports.getDeliveries = async (req, res) => {
+/*exports.getEarning = async (req, res) => {
     try {
-        const userId = req.params.userId;
+        const userId = req.query.userId;
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+
+        // Parse the page number from the query string, default to 1 if not provided
+        const page = parseInt(req.query.page) || 1;
+
+        // Define the number of orders per page
+        const ordersPerPage = 10;
+
+        // Calculate the offset
+        const offset = (page - 1) * ordersPerPage;
+
+        // Prepare the filter object based on the provided parameters
+        const filter = {
+            userId: userId
+        };
+
+        // Add date range criteria if both startDate and endDate are provided
+        if (startDate && endDate) {
+            filter.createdAt = { $gte: startDate, $lte: endDate };
+        }
+
+        // Query the database for orders that match the given userId and fall within the date range (if provided)
+        const orders = await Order.findAndCountAll({
+            where: filter,
+            offset: offset,
+            limit: ordersPerPage,
+            raw: true // Get raw JSON data directly from the database
+        });
+
+        const totalOrders = orders.count;
+        const totalPages = Math.ceil(totalOrders / ordersPerPage);
+
+        // Calculate total earnings
+        const totalEarnings = orders.rows.reduce((total, order) => total + order.totalAmount, 0);
+
+        const responseData = {
+            orders: orders.rows.map(order => ({
+                totalAmount: order.totalAmount,
+                updatedAt: order.updatedAt,
+                orderNo: order.orderNo
+            })),
+            totalOrders: totalOrders,
+            totalPages: totalPages,
+            totalEarnings: totalEarnings
+        };
+
+        // Send the response
+        res.json(responseData);
+    } catch (error) {
+        // Handle error
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+};*/
+
+exports.getEarning = async (req, res) => {
+    try {
+        let userId = req.query.userId;
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+
+        // If userId is not provided in the query parameters, return a 400 Bad Request response
+        if (!userId) {
+            return res.status(400).json({ error: 'userId parameter is required' });
+        }
+
+        // Parse the page number from the query string, default to 1 if not provided
+        const page = parseInt(req.query.page) || 1;
+
+        // Define the number of orders per page
+        const ordersPerPage = 10;
+
+        // Calculate the offset
+        const offset = (page - 1) * ordersPerPage;
+
+        // Prepare the filter object based on the provided parameters
+        const filter = {
+            userId: userId
+        };
+
+        // Add date range criteria if both startDate and endDate are provided
+        if (startDate && endDate) {
+            filter.createdAt = { $gte: startDate, $lte: endDate };
+        }
+
+        // Query the database for orders that match the given userId and fall within the date range (if provided)
+        const orders = await Order.findAndCountAll({
+            where: filter,
+            offset: offset,
+            limit: ordersPerPage,
+            raw: true // Get raw JSON data directly from the database
+        });
+
+        const totalOrders = orders.count;
+        const totalPages = Math.ceil(totalOrders / ordersPerPage);
+
+        // Calculate total earnings
+        const totalEarnings = orders.rows.reduce((total, order) => total + order.totalAmount, 0);
+
+        const responseData = {
+            orders: orders.rows.map(order => ({
+                totalAmount: order.totalAmount,
+                updatedAt: order.updatedAt,
+                orderNo: order.orderNo
+            })),
+            totalOrders: totalOrders,
+            totalPages: totalPages,
+            totalEarnings: totalEarnings
+        };
+
+        // Send the response
+        res.json(responseData);
+    } catch (error) {
+        // Handle error
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+};
+
+
+
+/*exports.getDeliveries = async (req, res) => {
+    try {
+        const userId = req.params.id;
         const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
         const pageSize = 6; // Number of records per page
 
@@ -903,7 +1133,7 @@ exports.getDeliveries = async (req, res) => {
 
         const orders = await Order.findAll({
             where: {
-                userId: userId,
+                userId: userId, // Use the extracted userId without any additional parameters
                 status: ['Delivered', 'Invoiced']
             },
             limit: pageSize, // Limit the number of records returned per page
@@ -928,4 +1158,53 @@ exports.getDeliveries = async (req, res) => {
         console.error('Error fetching data from Order tables:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
+}*/
+
+
+exports.getDeliveries = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
+        const pageSize = 6; // Number of records per page
+
+        // Calculate the offset based on the page number and page size
+        const offset = (page - 1) * pageSize;
+
+        // Query the database for orders that match the given userId and status (Delivered or Invoiced)
+        const orders = await Order.findAndCountAll({
+            where: {
+                userId: userId, // Use the extracted userId without any additional parameters
+                status: ['Delivered', 'Invoiced']
+            },
+            limit: pageSize, // Limit the number of records returned per page
+            offset: offset // Offset to skip records based on the page number
+        });
+
+        // Calculate total pages
+        const totalPages = Math.ceil(orders.count / pageSize);
+
+        // Format the orders
+        const formattedOrders = orders.rows.map(order => {
+            const formattedCreatedAt = new Date(order.createdAt).toISOString().split('T')[0];
+            const formattedUpdatedAt = new Date(order.updatedAt).toISOString().split('T')[0];
+
+            return {
+                ...order.toJSON(),
+                createdAt: formattedCreatedAt,
+                updatedAt: formattedUpdatedAt
+            };
+        });
+
+        // Send the paginated orders along with total pages and total orders as a response
+        res.json({ 
+            message: 'Getting Orders data Successfully', 
+            orders: formattedOrders,
+            totalPages: totalPages,
+            totalOrders: orders.count
+        });
+    } catch (error) {
+        console.error('Error fetching data from Order tables:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 }
+

@@ -9,7 +9,8 @@ const fileUpload          = require('express-fileupload');
 const util =require('util');
 const fs = require('fs');
 const exec = util.promisify(require('child_process').exec);
-
+const sharp = require('sharp');
+const path = require('path');
 const User = require('../models/Users');
 const Shop = require('../models/Shops');
 const Item = require('../models/Items');
@@ -84,7 +85,7 @@ exports.createUser = async (req,res) => {
         res.status(500).json({ error: 'Error creating user' });
     }
 };
-
+/*
 exports.createItem =async (req,res) =>{
 	try{
 		const {name,price,quantity,description} = req.body;
@@ -114,9 +115,73 @@ exports.createItem =async (req,res) =>{
 		res.status(500).json({ message: 'Internal server error' });
 	}
 }
+*/
+
+exports.createItem = async (req, res) => {
+    try {
+        const { name, price, quantity, description } = req.body;
+
+        // Create directory for original images if it doesn't exist
+        const originalImageDir = `${ItemPath}/original`;
+        if (!fs.existsSync(originalImageDir)) {
+            fs.mkdirSync(originalImageDir, { recursive: true });
+        }
+
+        // Save original image
+        const image = req.files.image;
+        const originalImagePath = `${originalImageDir}/${image.name}`;
+        await image.mv(originalImagePath);
+
+        // Create thumbnails directory if it doesn't exist
+        const thumbnailDir = `${ItemPath}/thumbnails`;
+        if (!fs.existsSync(thumbnailDir)) {
+            fs.mkdirSync(thumbnailDir, { recursive: true });
+        }
+
+        // Determine file extension and resize accordingly
+        const extension = path.extname(image.name).toLowerCase();
+        const thumbnailImagePath = `${thumbnailDir}/${path.basename(image.name, extension)}.webp`;
+        let pipeline;
+
+        if (extension === '.png' || extension === '.jpg' || extension === '.jpeg') {
+            pipeline = sharp(originalImagePath)
+                .resize({ width: 200, height: 200 })
+                .toFormat('webp') // Convert to WebP format
+                .webp({ quality: 80 }) // Set WebP quality
+                .toFile(thumbnailImagePath);
+        } else {
+            throw new Error('Unsupported file format');
+        }
+
+        // Create thumbnail image
+        await pipeline;
+
+        // Generate URL for original and thumbnail images
+        const originalImageUrl = `http://64.227.139.72${URLpathI}/original/${image.name}`;
+        const thumbnailImageUrl = `http://64.227.139.72${URLpathI}/thumbnails/${path.basename(image.name, extension)}.webp`;
+
+        // Create the item
+        const item = await Item.create({
+            name: name,
+            image: originalImageUrl, // Store URL of original image in the database
+            thumbnail: thumbnailImageUrl, // Store URL of thumbnail image in the database
+            price: price,
+            quantity: quantity,
+            description: description,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        // Return success response
+        res.status(201).json({ message: "Item created successfully", item });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
 
-exports.updateItem = async (req,res) => {
+/*exports.updateItem = async (req,res) => {
 	try{
 		const id =req.params.id;
 		const {name, price, quantity, description} =req.body;
@@ -163,6 +228,82 @@ exports.updateItem = async (req,res) => {
 	}
 }
 
+*/
+
+exports.updateItem = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { name, price, quantity, description } = req.body;
+        const item = await Item.findOne({ where: { id: id } });
+
+        if (!item) {
+            return res.status(404).json({ message: 'Item not found' });
+        }
+
+        if (name !== undefined) {
+            item.name = name;
+        }
+        if (price !== undefined) {
+            item.price = price;
+        }
+        if (quantity !== undefined) {
+            item.quantity = quantity;
+        }
+        if (description !== undefined) {
+            item.description = description;
+        }
+        if (req.files) {
+            // Create directory for original images if it doesn't exist
+            const originalImageDir = `${ItemPath}/original`;
+            if (!fs.existsSync(originalImageDir)) {
+                fs.mkdirSync(originalImageDir, { recursive: true });
+            }
+
+            // Save original image
+            const image = req.files.image;
+            const originalImagePath = `${originalImageDir}/${image.name}`;
+            await image.mv(originalImagePath);
+
+            // Create thumbnails directory if it doesn't exist
+            const thumbnailDir = `${ItemPath}/thumbnails`;
+            if (!fs.existsSync(thumbnailDir)) {
+                fs.mkdirSync(thumbnailDir, { recursive: true });
+            }
+
+            // Determine file extension and resize accordingly
+            const extension = path.extname(image.name).toLowerCase();
+            const thumbnailImagePath = `${thumbnailDir}/${path.basename(image.name, extension)}.webp`;
+            let pipeline;
+
+            if (extension === '.png' || extension === '.jpg' || extension === '.jpeg') {
+                pipeline = sharp(originalImagePath)
+                    .resize({ width: 200, height: 200 })
+                    .toFormat('webp') // Convert to WebP format
+                    .webp({ quality: 80 }) // Set WebP quality
+                    .toFile(thumbnailImagePath);
+            } else {
+                throw new Error('Unsupported file format');
+            }
+
+            // Create thumbnail image
+            await pipeline;
+
+            // Generate URL for original and thumbnail images
+            const originalImageUrl = `http://64.227.139.72${URLpathI}/original/${image.name}`;
+            const thumbnailImageUrl = `http://64.227.139.72${URLpathI}/thumbnails/${path.basename(image.name, extension)}.webp`;
+
+            // Set the item's image and thumbnail URLs
+            item.image = originalImageUrl;
+            item.thumbnail = thumbnailImageUrl;
+        }
+
+        await item.save();
+        res.status(201).json({ message: "Item updated successfully", item });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
 
 
 

@@ -6,7 +6,8 @@ const item = sequelize.define('Items', {
   price:DataTypes.INTEGER,
   quantity :DataTypes.STRING,
   description:DataTypes.STRING,
-  image:DataTypes.STRING
+  image:DataTypes.STRING,
+  thumbnail:DataTypes.STRING
 });
 
 
