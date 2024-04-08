@@ -16,6 +16,8 @@ const crypto = require('crypto');
 const secretKey = crypto.randomBytes(32).toString('hex');
 const shopImage ='/etc/ec/data/shopImage/';
 const shopImagePath ='/shopImage';
+const sharp = require('sharp');
+const path = require('path');
 
 exports.userSignin = async (req,res) => {
     try{
@@ -35,7 +37,7 @@ exports.userSignin = async (req,res) => {
 
 }
 
-exports.createShop = async (req, res) => {
+/*exports.createShop = async (req, res) => {
     const id = req.params.id;
 const image = req.files.shopImage;
 //    const id = req.params.id;
@@ -81,7 +83,79 @@ const image = req.files.shopImage;
         res.status(500).json({ message: 'Internal server error' });
     }
 
+}*/
+
+exports.createShop = async (req, res) => {
+    const image = req.files.shopImage;
+    const id = req.params.id;
+
+    try {
+        const { shopname, location, address, emailId, contectnumber } = req.body;
+        
+        const user = await User.findOne({ where: { id: id } });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Create directory for original images if it doesn't exist
+        const originalImageDir = `${shopImage}/original`;
+        if (!fs.existsSync(originalImageDir)) {
+            fs.mkdirSync(originalImageDir, { recursive: true });
+        }
+
+        // Save original image
+        const originalImagePath = `${originalImageDir}/${image.name}`;
+        await image.mv(originalImagePath);
+
+        // Create thumbnails directory if it doesn't exist
+        const thumbnailDir = `${shopImage}/thumbnails`;
+        if (!fs.existsSync(thumbnailDir)) {
+            fs.mkdirSync(thumbnailDir, { recursive: true });
+        }
+
+        // Determine file extension and resize accordingly
+        const extension = path.extname(image.name).toLowerCase();
+        const thumbnailImagePath = `${thumbnailDir}/${path.basename(image.name, extension)}.webp`;
+        let pipeline;
+
+        if (extension === '.png' || extension === '.jpg' || extension === '.jpeg') {
+            pipeline = sharp(originalImagePath)
+                .resize({ width: 200, height: 200 })
+                .toFormat('webp') // Convert to WebP format
+                .webp({ quality: 80 }) // Set WebP quality
+                .toFile(thumbnailImagePath);
+        } else {
+            throw new Error('Unsupported file format');
+        }
+
+        // Create thumbnail image
+        await pipeline;
+
+        // Generate URL for original and thumbnail images
+        const originalImageUrl = `http://64.227.139.72${shopImagePath}/original/${image.name}`;
+        const thumbnailImageUrl = `http://64.227.139.72${shopImagePath}/thumbnails/${path.basename(image.name, extension)}.webp`;
+
+        // Create a new shop associated with the user
+        const shop = await Shop.create({
+            shopname,
+            location,
+            address,
+            emailId,
+            contectnumber,
+            shopImage: originalImageUrl, // Store URL of original image in the database
+            thumbnailimage: thumbnailImageUrl, // Store URL of thumbnail image in the database
+            userId: user.id
+        });
+        
+        // Return success response
+        return res.status(201).json({ message: "Shop created successfully", shop });
+        
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 }
+
 
 
 exports.updateShop = async (req, res) => {
@@ -171,7 +245,7 @@ exports.deleteShop = async (req, res) => {
 exports.createOrder = async (req, res) => {
 	const id = req.params.id;
     try {
-        const { expecteddate, shopId, orderType, orderNo, status, yourearing, totalAmount, itemId, quantity } = req.body;
+        const { expecteddate, shopId, orderType, orderNo, status, statusid, yourearing, totalAmount, itemId, quantity } = req.body;
         const user =await User.findOne({ where:{id:id}});
         // Verify that the shop exists
         const shop = await Shop.findOne({ where: { id: shopId } });
@@ -202,6 +276,7 @@ exports.createOrder = async (req, res) => {
             totalAmount,
             orderType,
             status:data,
+	    statusid:status,
             shopName: shop.shopname,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -247,7 +322,7 @@ exports.createOrder = async (req, res) => {
 exports.updateOrder = async (req,res) => {
 	try {
         const orderId = req.params.id;
-        const { expecteddate, orderType, status, shopId, orderNo, userId, yourearing, totalAmount, itemId, quantity } = req.body;
+        const { expecteddate, orderType, status, statusid, shopId, orderNo, userId, yourearing, totalAmount, itemId, quantity } = req.body;
 	const sts = await Status.findAll({where:{id:status}});
 	var data = sts[0].dataValues.status;
         // Verify that the order exists
@@ -278,6 +353,10 @@ if (orderNo !== undefined) {
 
 if (status !== undefined) {
     order.status = data;
+}
+
+if (statusid !== undefined) {
+    order.statusid =statusid.status;
 }
 
 if (yourearing !== undefined) {
@@ -378,7 +457,7 @@ var userData ={
             emailId: user[0].emailId
 }
 console.log("userData----",userData)
-res.status(200).json(userData);
+res.status(200).json({message:'Get the user profile detalis ',userData});
 }catch(error){
 	console.log(error)
 	res.status(500).json({ message: "Internal server error" });
@@ -451,23 +530,65 @@ exports.getshopitem = async (req,res) => {
     }
 }
 
-exports.getOrders = async (req,res) =>{
+/*exports.getOrders = async (req,res) =>{
     try{
         const id =req.params.userId;
         const orders =await Order.findAll({where: { userId: id },
             include: User});
-        console.log(orders);
+	const formattedOrders = orders.map(order => {
+            const formattedCreatedAt = new Date(order.createdAt).toISOString().split('T')[0];
+            const formattedUpdatedAt = new Date(order.updatedAt).toISOString().split('T')[0];
+
+            return {
+                ...order.toJSON(),
+                createdAt: formattedCreatedAt,
+                updatedAt: formattedUpdatedAt
+            };
+        });
+	console.log("formattedOrders----------",formattedOrders);
         //return
-        res.json({message:'Getting Orders data Successfully',orders});
+        res.json({message:'Getting Orders data Successfully',orders:formattedOrders});
         //return
     }catch(error){
         console.error('Error fetching data from Order tables:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 
+}*/
+
+exports.getOrders = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
+        const pageSize = 6; // Number of records per page
+
+        // Calculate the offset based on the page number and page size
+        const offset = (page - 1) * pageSize;
+
+        const orders = await Order.findAll({
+            where: { userId: userId },
+            include: User, // Assuming User is the associated model
+            limit: pageSize, // Limit the number of records returned per page
+            offset: offset // Offset to skip records based on the page number
+        });
+
+        // Format the orders with createdAt and updatedAt dates
+        const formattedOrders = orders.map(order => ({
+            ...order.toJSON(),
+            createdAt: new Date(order.createdAt).toISOString().split('T')[0],
+            updatedAt: new Date(order.updatedAt).toISOString().split('T')[0]
+        }));
+
+        // Send the paginated and formatted orders as a response
+        res.json({ message: 'Getting Orders data successfully', orders: formattedOrders });
+    } catch (error) {
+        console.error('Error fetching data from Order tables:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 }
 
-exports.getItems = async (req,res) =>{
+
+/*exports.getItems = async (req,res) =>{
     try{
         const items = await Item.findAll();
         res.json(items);
@@ -476,17 +597,67 @@ exports.getItems = async (req,res) =>{
         console.error('Error fetching data from Items tables:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
+}*/
+
+exports.getItems = async (req, res) => {
+    try {
+        // Parse the page number from the query string
+        const page = parseInt(req.query.page) || 1;
+        
+        // Define the number of items per page
+        const itemsPerPage = 6;
+
+        // Calculate the offset
+        const offset = (page - 1) * itemsPerPage;
+
+        // Find items with pagination
+        const items = await Item.findAll({
+            offset: offset,
+            limit: itemsPerPage
+        });
+
+        res.json(items);
+    } catch (error) {
+        console.error('Error fetching data from Items tables:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 }
 
 
-exports.getShops = async (req,res) =>{
+
+/*exports.getShops = async (req,res) =>{
     try{
         const shops = await Shop.findAll();
         res.json(shops);
     }catch(error){
         res.status(500).json({message:'Error from getting the shop datas'})
     }
-}
+}*/
+
+exports.getShops = async (req, res) => {
+    try {
+        // Parse the page number from the query string, default to 1 if not provided
+        const page = parseInt(req.query.page) || 1;
+        
+        // Define the number of shops per page
+        const shopsPerPage = 6;
+
+        // Calculate the offset
+        const offset = (page - 1) * shopsPerPage;
+
+        // Find shops with pagination
+        const shops = await Shop.findAll({
+            offset: offset,
+            limit: shopsPerPage
+        });
+
+        res.json(shops);
+    } catch (error) {
+        console.error('Error fetching data from Shops table:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 
 
 
@@ -608,7 +779,7 @@ exports.getStatus =async (req,res) =>{
     }
 }
 
-exports.getEarning = async (req, res) => {
+/*exports.getEarning = async (req, res) => {
     try {
         const userId = req.query.userId;
         const startDate = req.query.startDate;
@@ -642,25 +813,119 @@ exports.getEarning = async (req, res) => {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
-};
-
-
-exports.getDeliveries = async (req,res) =>{
+};*/
+exports.getEarning = async (req, res) => {
     try {
-        // Find all orders with status Delivered or Invoiced
+        const userId = req.query.userId;
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+
+        // Parse the page number from the query string, default to 1 if not provided
+        const page = parseInt(req.query.page) || 1;
+        
+        // Define the number of orders per page
+        const ordersPerPage = 10;
+
+        // Calculate the offset
+        const offset = (page - 1) * ordersPerPage;
+
+        // Prepare the filter object based on the provided parameters
+        const filter = {
+            userId: userId
+        };
+        
+        // Add date range criteria if both startDate and endDate are provided
+        if (startDate && endDate) {
+            filter.createdAt = { $gte: startDate, $lte: endDate };
+        }
+
+        // Query the database for orders that match the given userId and fall within the date range (if provided)
         const orders = await Order.findAll({
-            where: {
-                status: ['Delivered', 'Invoiced']
-            },
-            attributes: ['orderNo', 'status', 'totalAmount', 'updatedAt', 'shopName']
+            where: filter,
+            offset: offset,
+            limit: ordersPerPage
         });
 
+        const responseData = orders.map(order => ({
+            totalAmount: order.totalAmount,
+            updatedAt: order.updatedAt,
+            orderNo: order.orderNo
+        }));
+
         // Send the response
-        res.json(orders);
+        res.json(responseData);
     } catch (error) {
         // Handle error
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
+};
 
+
+/*exports.getDeliveries = async (req,res) =>{
+    const id =req.params.id;
+    console.log("id----",id)
+    try{
+        const userId =req.params.userId;
+
+        const orders =await Order.findAll({
+            where: {userId:id,
+                status: ['Delivered', 'Invoiced']}
+            });
+         const formattedOrders = orders.map(order => {
+            const formattedCreatedAt = new Date(order.createdAt).toISOString().split('T')[0];
+            const formattedUpdatedAt = new Date(order.updatedAt).toISOString().split('T')[0];
+
+            return {
+                ...order.toJSON(),
+                createdAt: formattedCreatedAt,
+                updatedAt: formattedUpdatedAt
+            };
+        });
+          res.json({message:'Getting Orders data Successfully',orders:formattedOrders});
+
+        //return
+    }catch(error){
+        console.error('Error fetching data from Order tables:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+
+}*/
+
+exports.getDeliveries = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
+        const pageSize = 6; // Number of records per page
+
+        // Calculate the offset based on the page number and page size
+        const offset = (page - 1) * pageSize;
+
+        const orders = await Order.findAll({
+            where: {
+                userId: userId,
+                status: ['Delivered', 'Invoiced']
+            },
+            limit: pageSize, // Limit the number of records returned per page
+            offset: offset // Offset to skip records based on the page number
+        });
+
+        // Format the orders
+        const formattedOrders = orders.map(order => {
+            const formattedCreatedAt = new Date(order.createdAt).toISOString().split('T')[0];
+            const formattedUpdatedAt = new Date(order.updatedAt).toISOString().split('T')[0];
+
+            return {
+                ...order.toJSON(),
+                createdAt: formattedCreatedAt,
+                updatedAt: formattedUpdatedAt
+            };
+        });
+
+        // Send the paginated orders as a response
+        res.json({ message: 'Getting Orders data Successfully', orders: formattedOrders });
+    } catch (error) {
+        console.error('Error fetching data from Order tables:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 }

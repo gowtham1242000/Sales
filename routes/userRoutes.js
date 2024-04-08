@@ -23,6 +23,6 @@ router.get('/searchorder', userController.searchorder);
 router.get('/searchshop', userController.searchshop);
 router.get('/getStatus', userController.getStatus);
 router.get('/getearning',userController.getEarning);
-router.get('/getDeliveries',userController.getDeliveries);
+router.get('/getDeliveries/:id',userController.getDeliveries);
 
 module.exports = router;

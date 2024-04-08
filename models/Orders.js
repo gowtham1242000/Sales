@@ -12,6 +12,7 @@ const order = sequelize.define('Orders', {
   yourearing:DataTypes.INTEGER,
   totalAmount:DataTypes.FLOAT,
   status:DataTypes.STRING,
+  statusid:DataTypes.INTEGER,
   orderType:DataTypes.STRING
   //itemId:DataTypes.ARRAY(DataTypes.INTEGER),
   //quantity:DataTypes.ARRAY(DataTypes.INTEGER)
