@@ -7,8 +7,18 @@ const shop = sequelize.define('Shops', {
   location:DataTypes.STRING,
   address:DataTypes.STRING,
   emailId:DataTypes.STRING,
-  shopImage:DataTypes.STRING,
-  thumbnailimage:DataTypes.STRING,
+ shopImage: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    allowNull: true // Adjust this as per your requirement
+  },
+  thumbnailimage: {
+    type: DataTypes.ARRAY(DataTypes.STRING),
+    allowNull: true // Adjust this as per your requirement
+  },
+  locationCode: {
+    type: DataTypes.JSONB, // Assuming JSONB data type for flexibility
+    allowNull: true // Adjust this as per your requirement
+  },
   contectnumber:DataTypes.STRING,
   userId:DataTypes.INTEGER
 });

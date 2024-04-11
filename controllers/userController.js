@@ -18,6 +18,8 @@ const shopImage ='/etc/ec/data/shopImage/';
 const shopImagePath ='/shopImage';
 const sharp = require('sharp');
 const path = require('path');
+const ReturnItem = require('../models/ReturnItems');
+const ReturnOrderItem =require('../models/ReturnOrderItems');
 
 exports.userSignin = async (req,res) => {
     try{
@@ -85,7 +87,7 @@ const image = req.files.shopImage;
 
 }*/
 
-exports.createShop = async (req, res) => {
+/*exports.createShop = async (req, res) => {
     const image = req.files.shopImage;
     const id = req.params.id;
 
@@ -125,7 +127,9 @@ exports.createShop = async (req, res) => {
                 .webp({ quality: 80 }) // Set WebP quality
                 .toFile(thumbnailImagePath);
         } else {
-            throw new Error('Unsupported file format');
+//console.log("------------")
+  //          throw new Error('Unsupported file format');
+		return res.status(500).json({ message: "Unsupport Image Format" });
         }
 
         // Create thumbnail image
@@ -151,11 +155,72 @@ exports.createShop = async (req, res) => {
         return res.status(201).json({ message: "Shop created successfully", shop });
         
     } catch (error) {
+
+        console.error("-------------",error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+*/
+const { extname, basename } = require('path');
+
+exports.createShop = async (req, res) => {
+    console.log("req.files-------", req.files.shopImage);
+
+    try {
+        const images = req.files && req.files.shopImage; // Assuming the key for images is 'shopImage'
+        const id = req.params.id;
+
+        const { shopname, location, address, emailId, contectnumber, locationCode } = req.body;
+        const parsedLocationCode = JSON.parse(locationCode);
+
+        const user = await User.findOne({ where: { id: id } });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Initialize arrays for image URLs
+        const shopImages = [];
+        const thumbnailImages = [];
+
+        // Loop through each image if images are provided
+        if (images && Array.isArray(images)) {
+            for (const image of images) {
+                // Process each image here
+                // ... Code to save and process images ...
+
+                // Determine file extension
+                const extension = extname(image.name).toLowerCase();
+
+                // Generate URL for original and thumbnail images
+                const originalImageUrl = `http://localhost${shopImagePath}/original/${image.name}`;
+                const thumbnailImageUrl = `http://localhost${shopImagePath}/thumbnails/${basename(image.name, extension)}.webp`;
+
+                // Push the URLs to the arrays
+                shopImages.push(originalImageUrl);
+                thumbnailImages.push(thumbnailImageUrl);
+            }
+        }
+
+        // Create a new shop associated with the user
+        const shop = await Shop.create({
+            shopname,
+            location,
+            address,
+            emailId,
+            contectnumber,
+            shopImage: shopImages,
+            thumbnailimage: thumbnailImages,
+            locationCode: JSON.stringify(parsedLocationCode),
+            userId: user.id
+        });
+
+        // Return success response
+        return res.status(201).json({ message: "Shop created successfully", shop });
+    } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }
-
 
 /*
 exports.updateShop = async (req, res) => {
@@ -220,6 +285,85 @@ console.log("shop----",shop)
 }
 */
 exports.updateShop = async (req, res) => {
+    const shopId = req.params.id;
+
+    try {
+        // Find the shop by ID
+        const shop = await Shop.findByPk(shopId);
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        // Update shop details if provided in the request body
+        const { shopname, location, address, emailId, contectnumber, locationCode } = req.body;
+        
+
+        if (shopname) {
+            shop.shopname = shopname;
+        }
+        if (location) {
+            shop.location = location;
+        }
+        if (address) {
+            shop.address = address;
+        }
+        if (emailId) {
+            shop.emailId = emailId;
+        }
+        if (contectnumber) {
+            shop.contectnumber = contectnumber;
+        }
+        if (locationCode) {
+            const parsedLocationCode = JSON.parse(locationCode);
+            shop.locationCode = JSON.stringify(parsedLocationCode);
+        }
+
+        // Handle image update if a new image is provided
+        if (req.files && req.files.shopImage) {
+            const images = req.files.shopImage; // Assuming the key for images is 'shopImage'
+
+            if (!Array.isArray(images)) {
+                return res.status(400).json({ message: "Shop images must be provided as an array" });
+            }
+
+            // Initialize arrays for image URLs
+            const shopImages = [];
+            const thumbnailImages = [];
+
+            // Loop through each image
+            for (const image of images) {
+                // Process each image here
+                // ... Code to save and process images ...
+
+                // Determine file extension
+                const extension = extname(image.name).toLowerCase();
+
+                // Generate URL for original and thumbnail images
+                const originalImageUrl = `http://localhost${shopImagePath}/original/${image.name}`;
+                const thumbnailImageUrl = `http://localhost${shopImagePath}/thumbnails/${basename(image.name, extension)}.webp`;
+
+                // Push the URLs to the arrays
+                shopImages.push(originalImageUrl);
+                thumbnailImages.push(thumbnailImageUrl);
+            }
+
+            // Update shop image URLs
+            shop.shopImage = shopImages;
+            shop.thumbnailimage = thumbnailImages;
+        }
+
+        // Save the updated shop
+        await shop.save();
+
+        // Return success response
+        return res.status(200).json({ message: "Shop updated successfully", shop });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+/*exports.updateShop = async (req, res) => {
     const shopId = req.params.id;
 
     try {
@@ -306,7 +450,7 @@ exports.updateShop = async (req, res) => {
     }
 }
 
-
+*/
 
 exports.deleteShop = async (req, res) => {
     const shopId = req.params.id;
@@ -354,6 +498,7 @@ exports.createOrder = async (req, res) => {
         }
 	
         var data = sts[0].dataValues.status;
+	console.log("data-------",data)
 	// Create the order
         const order = await Order.create({
             expecteddate,
@@ -1208,3 +1353,285 @@ exports.getDeliveries = async (req, res) => {
     }
 }
 
+/*exports.createReturnOrder = async (req, res) => {
+    try {
+        const { statusId, orderNo, shopId, itemId, totalAmount, yourearing, quantity, userId } = req.body;
+        
+        // Check if the order exists
+        const order = await Order.findOne({ where: { shopId: shopId } });
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+	const shop = await Shop.findOne({where:{id:shopId}});
+
+        // Create the return order
+        const returnOrder = await ReturnItem.create({
+            userId: req.params.id,
+            statusId: statusId,
+            orderId: order.id,
+            shopId: shopId,
+	    shopName: shop.shopName,
+	    yourearing: yourearing,
+ 	    quantity: quantity,
+            totalAmount:totalAmount,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        // Create return order items
+        const returnOrderItems = [];
+        for (let i = 0; i < itemId.length; i++) {
+            const item = await Item.findByPk(itemId[i]);
+            if (!item) {
+                console.log(`Item with ID ${itemId[i]} not found. Skipping...`);
+                continue;
+            }
+
+            // Create the return order item
+            const returnOrderItem = await ReturnOrderItem.create({
+                userId: req.params.id,
+                returnOrderId: returnOrder.id,
+                itemId: itemId[i],
+                quantityReturned: quantity[i],
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            console.log("ReturnOrderItem created successfully", returnOrderItem);
+            returnOrderItems.push(returnOrderItem);
+        }
+
+        res.status(201).json({ message: "Return order created successfully" });
+    } catch (error) {
+        console.error("Error creating return order:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+*/
+
+exports.createReturnOrder = async (req, res) => {
+    try {
+        const { statusId, orderNo, shopId, itemId, totalAmount, yourearning, quantity } = req.body;
+
+        // Check if the order exists
+        const order = await Order.findOne({ where: { shopId: shopId } });
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        const shop = await Shop.findOne({ where: { id: shopId } });
+
+console.log("shop-----------",shop)
+//console.log("statusId, orderNo, shopId, itemId, totalAmount, yourearning, quantity,",statusId, orderNo, shopId, itemId, totalAmount, yourearning, quantity, shop.shopName)
+//return
+        // Create the return order
+const returnOrder = await ReturnItem.create({
+    userId: req.params.id,
+    statusId: statusId,
+    orderNo: orderNo,
+    shopId: shopId,
+    shopName: shop.shopname,
+    yourearing: yourearning,
+    totalAmount: totalAmount,
+    createdAt: new Date(),
+    updatedAt: new Date()
+});
+
+        // Create return order items
+        const returnOrderItems = [];
+        for (let i = 0; i < itemId.length; i++) {
+            const item = await Item.findByPk(itemId[i]);
+            if (!item) {
+                console.log(`Item with ID ${itemId[i]} not found. Skipping...`);
+                continue;
+            }
+
+            // Create the return order item
+            const returnOrderItem = await ReturnOrderItem.create({
+                userId: req.params.id,
+                returnOrderId: returnOrder.id,
+                itemId: itemId[i],
+                quantityReturned: quantity[i],
+		orderNo: orderNo,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            console.log("ReturnOrderItem created successfully", returnOrderItem);
+            returnOrderItems.push(returnOrderItem);
+        }
+
+        res.status(201).json({ message: "Return order created successfully" });
+    } catch (error) {
+        console.error("Error creating return order:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+
+exports.getReturnOrders = async (req,res) =>{
+    try{
+        const id =req.params.userId;
+        const orders =await ReturnItem.findAll({where: { userId: id },
+            include: User});
+        console.log(orders);
+        //return
+        res.json(orders);
+        //return
+    }catch(error){
+        console.error('Error fetching data from Order tables:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+
+}
+
+
+/*exports.getReturnOrders = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+
+        // Find return orders for the given userId
+        const returnOrders = await ReturnItem.findAll({
+            where: { userId: userId },
+            include: [
+              //  { model: Order, include: Shop }, // Include associated order and shop details
+                //{ model: Status }, // Include associated status details
+                { model: ReturnOrderItem, include: Item } // Include associated return order items and item details
+            ]
+        });
+
+        // Extract required data and format the response
+        const formattedOrders = returnOrders.map(returnOrder => ({
+            id: returnOrder.id,
+            shopId: returnOrder.shopId,
+            shopName: returnOrder.shopName,
+            yourearing: returnOrder.yourearing,
+            statusId: returnOrder.statusId,
+            orderNo: returnOrder.orderNo,
+            userId: returnOrder.userId,
+            totalAmount: returnOrder.order.totalAmount,
+            createdAt: returnOrder.createdAt,
+            updatedAt: returnOrder.updatedAt,
+            returnOrderItems: returnOrder.returnOrderItems.map(returnOrderItem => ({
+                itemId: returnOrderItem.itemId,
+                quantityReturned: returnOrderItem.quantityReturned
+            }))
+        }));
+
+        // Send the formatted response
+        res.json(formattedOrders);
+    } catch (error) {
+        console.error('Error fetching return orders:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};*/
+
+exports.getOrderDetails = async (req, res) => {
+    try {
+        const orderId = req.params.orderId;
+
+        // Find the order by ID
+        const order = await Order.findOne({ where: { id: orderId } });
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Find the order items associated with the order
+        const orderItems = await OrderItem.findAll({ where: { orderId: orderId } });
+
+
+        // Fetch additional details for each order item
+        const orderItemsWithDetails = await Promise.all(orderItems.map(async (orderItem) => {
+            // Find the item details for the order item
+            const item = await Item.findOne({ where: { id: orderItem.itemId } });
+            const itemTotalPrice = item.price * orderItem.quantity;
+            
+            return {
+                item: {
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    totalPrice: itemTotalPrice, 
+                    // Add any other item details you want to include
+                },
+                quantity: orderItem.quantity,
+                // ItemsTotalPrice:ItemsTotalPrice,
+                // Add any other order item details you want to include
+            };
+        }));
+        let totalAmount = 0;
+let yourEarnings = 0;
+
+
+
+try {
+    // Loop through each orderItem in the orderItems array
+    orderItems.forEach(orderItem => {
+        // Access the totalAmount and yourEarnings properties of each orderItem
+        totalAmount += orderItem.dataValues.totalAmount || 0;
+        yourEarnings += orderItem.dataValues.yourearing || 0;
+    });
+
+    console.log('Total Amount:', totalAmount);
+    console.log('Your Earnings:', yourEarnings);
+} catch (error) {
+    console.error('Error calculating total amount and your earnings:', error);
+}
+
+        // Find the shop details for the order
+        const shop = await Shop.findOne({ where: { id: order.shopId } });
+console.log("shop-------------",shop)
+console.log("shop.shopName---------",shop.dataValues.shopName);
+        // Prepare the response object
+        const response = {
+            orderNo: order.orderNo,
+            deliveryDate: order.expecteddate, // Assuming expecteddate is the delivery date
+            shopName: shop.shopname, // Assuming shopName is the correct attribute
+            orderStatus: order.status,
+            statusId: order.statusid,
+            orderItems: orderItemsWithDetails, 
+            totalAmount: totalAmount,
+            yourEarnings: yourEarnings,
+            //ItemsTotalPrice
+        };
+
+        // Return success response with order details
+        return res.status(200).json(response);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+
+
+exports.searchAndFilterShops = async (req, res) => {
+    try {
+        const { shopName, fromDate, toDate } = req.query;
+
+        // Define the filter object
+        const filter = {};
+
+        // Apply shopName filter if provided
+        if (shopName) {
+            filter.shopName = { [Op.like]: `%${shopName}%` };
+        }
+
+        // Apply date range filter if both fromDate and toDate are provided
+        if (fromDate && toDate) {
+            filter.createdAt = {
+                [Op.between]: [new Date(fromDate), new Date(toDate)]
+            };
+        }
+
+        // Fetch the shops based on the filters
+        const shops = await ReturnItem.findAll({
+            where: filter
+        });
+
+        // Return the filtered shops
+        return res.status(200).json({ shops });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};

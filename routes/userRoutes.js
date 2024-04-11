@@ -24,5 +24,9 @@ router.get('/searchshop', userController.searchshop);
 router.get('/getStatus', userController.getStatus);
 router.get('/getearning',userController.getEarning);
 router.get('/getDeliveries/:id',userController.getDeliveries);
-
+router.post('/createReturnOrder/:id', userController.createReturnOrder);
+//router.get('/getReturnOrder/:userId', userController.getReturnOrders)
+//router.get('/getOrderItems/:id', userController.getOrderItems);
+router.get('/searchAndFilterShops', userController.searchAndFilterShops);
+router.get('/getOrderDetails/:orderId', userController.getOrderDetails);
 module.exports = router;
