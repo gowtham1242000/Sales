@@ -10,7 +10,8 @@ router.post('/createItem', adminController.createItem);
 router.put('/updateItem/:id', adminController.updateItem);
 router.delete('/deleteItem/:id', adminController.deleteItem);
 router.post('/createStatus', adminController.createStatus);
-
+router.post('/createLocation',adminController.createLocation);
+//router.get('/getLocation',adminController.getLocation);
 
 
 

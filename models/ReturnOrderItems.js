@@ -1,22 +1,17 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/config');
-const Shop = require('./Shops');
 const Item = require('./Items');
-const Order =require('./Orders');
-const User =require('./Users');
+const User = require('./Users');
 
-const returnOrderItem = sequelize.define('ReturnOrderItems', {
-  returnOrderId:DataTypes.INTEGER,
-  itemId:DataTypes.INTEGER,
-  userId:DataTypes.INTEGER,
-  quantityReturned:DataTypes.STRING
- // quantity:DataTypes.INTEGER,
+const ReturnOrderItem = sequelize.define('ReturnOrderItem', {
+    returnOrderId: DataTypes.INTEGER,
+    itemId: DataTypes.INTEGER,
+    userId: DataTypes.INTEGER,
+    returnNo: DataTypes.STRING,
+    quantityReturned: DataTypes.STRING
 });
 
-returnOrderItem.belongsTo(Item, { foreignKey: 'itemId', targetKey: 'id' });
+ReturnOrderItem.belongsTo(Item, { foreignKey: 'itemId', targetKey: 'id' });
+ReturnOrderItem.belongsTo(User, { foreignKey: 'userId', targetKey: 'id' });
 
-returnOrderItem.belongsTo(Order, { foreignKey: 'orderId', targetKey: 'id' });
-
-returnOrderItem.belongsTo(User, { foreignKey: 'userId', targetKey:'id'});
-
-module.exports = returnOrderItem;
+module.exports = ReturnOrderItem;

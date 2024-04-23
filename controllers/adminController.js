@@ -15,6 +15,7 @@ const User = require('../models/Users');
 const Shop = require('../models/Shops');
 const Item = require('../models/Items');
 const Status = require('../models/Status');
+const Location = require('../models/Locations');
 const ItemPath='/etc/ec/data/Items/';
 const URLpathI ='/Items';
 //admin signup
@@ -157,8 +158,8 @@ exports.createItem = async (req, res) => {
         await pipeline;
 
         // Generate URL for original and thumbnail images
-        const originalImageUrl = `http://64.227.139.72${URLpathI}/original/${image.name}`;
-        const thumbnailImageUrl = `http://64.227.139.72${URLpathI}/thumbnails/${path.basename(image.name, extension)}.webp`;
+        const originalImageUrl = `https://64.227.139.72${URLpathI}/original/${image.name}`;
+        const thumbnailImageUrl = `https://64.227.139.72${URLpathI}/thumbnails/${path.basename(image.name, extension)}.webp`;
 
         // Create the item
         const item = await Item.create({
@@ -289,8 +290,8 @@ exports.updateItem = async (req, res) => {
             await pipeline;
 
             // Generate URL for original and thumbnail images
-            const originalImageUrl = `http://64.227.139.72${URLpathI}/original/${image.name}`;
-            const thumbnailImageUrl = `http://64.227.139.72${URLpathI}/thumbnails/${path.basename(image.name, extension)}.webp`;
+            const originalImageUrl = `https://64.227.139.72${URLpathI}/original/${image.name}`;
+            const thumbnailImageUrl = `https://64.227.139.72${URLpathI}/thumbnails/${path.basename(image.name, extension)}.webp`;
 
             // Set the item's image and thumbnail URLs
             item.image = originalImageUrl;
@@ -339,3 +340,29 @@ exports.createStatus =async (req,res) =>{
 		res.status(500).json({message:'Internal server Error'})
 	}
 }
+exports.createLocation = async (req,res) =>{
+// Route to handle POST requests to create a new location
+  try {
+    // Extract location details from the request body
+    const { LocationName } = req.body;
+
+    // Create a new location using Sequelize
+    const newLocation = await Location.create({
+      LocationName,
+      createdAt: new Date(),
+       updatedAt: new Date()
+    });
+
+    // Send a success response with the newly created location
+    return res.status(201).json({ message: 'Location created successfully', location: newLocation });
+  } catch (error) {
+    console.error(error);
+    // If an error occurs, send an error response
+    return res.status(500).json({ message: 'Failed to create location' });
+  }
+}
+
+
+
+//const Location = require('../models/location');
+

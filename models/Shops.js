@@ -7,6 +7,11 @@ const shop = sequelize.define('Shops', {
   location:DataTypes.STRING,
   address:DataTypes.STRING,
   emailId:DataTypes.STRING,
+  shopCode:DataTypes.STRING,
+   availability: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true       // Assume shops are available by default
+  },
  shopImage: {
     type: DataTypes.ARRAY(DataTypes.STRING),
     allowNull: true // Adjust this as per your requirement
