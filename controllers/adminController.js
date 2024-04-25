@@ -17,6 +17,8 @@ const Item = require('../models/Items');
 const Status = require('../models/Status');
 const Location = require('../models/Locations');
 const ItemPath='/etc/ec/data/Items/';
+const userProfile='/etc/ec/data/ProfilePath/';
+
 const URLpathI ='/Items';
 //admin signup
 exports.createAdmin = async (req,res) => {
@@ -60,11 +62,12 @@ exports.signUser = async (req,res) => {
 
 }
 
+/*
 exports.createUser = async (req,res) => {
 	try {
 		const id =req.params.id;
-        const { username, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
+        	const { username, password, phoneNumber, salesManId, availability, emailId } = req.body;
+        	const hashedPassword = await bcrypt.hash(password, 10);
         
         // Check if the username already exists
         const admin = await User.findOne({where:{id:id}});
@@ -74,9 +77,35 @@ exports.createUser = async (req,res) => {
         if (preuser) {
             return res.status(500).send({ message: "This username is already registered. Try another username." });
         }
+	if (req.files) {
+            var finalName = user.username.replace(/\s+/g, '_');
+            const desImageDir = `${userProfile}${finalName}`;
+
+            if (!fs.existsSync(desImageDir)) {
+                fs.mkdirSync(desImageDir, { recursive: true });
+                console.log("Directory created successfully");
+            }
+
+            const imagePath = `${desImageDir}/${req.files.userProfileImage.name}`;
+            if (fs.existsSync(imagePath)) {
+                // Delete the old image file
+                fs.unlinkSync(imagePath);
+            }
+            fs.writeFileSync(imagePath, req.files.userProfileImage.data, 'binary');
+            userProfileImage = `https://salesman.aindriya.co.in${profilePath}/${finalName}/${req.files.userProfileImage.name}`;
+        }
+
 
         // Create the user if the username doesn't exist
-        const user = await User.create({ username: username, password: hashedPassword, role: 'user', adminId:admin.id });
+        const user = await User.create({
+			username: username,
+			password: hashedPassword,
+			role: 'user',
+			adminId:admin.id,
+			phoneNumber:phoneNumber,
+			emailId:emailId,
+			userProfileImage:userProfileImage,
+			logoutStatus:availability });
         const token = jwt.sign({ userId: user.id }, secretKey, { expiresIn: '1h' });
 
         res.status(201).send({ message: 'User created successfully', userId: user.id, token: token });
@@ -86,6 +115,65 @@ exports.createUser = async (req,res) => {
         res.status(500).json({ error: 'Error creating user' });
     }
 };
+*/
+
+
+exports.createUser = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { username, password, phoneNumber, salesManId, availability, emailId } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Check if the username already exists
+        const admin = await User.findOne({ where: { id: id } });
+        if (!admin) {
+            return res.status(404).json({ message: "Admin not found" });
+        }
+
+        const preuser = await User.findOne({ where: { username: username } });
+        if (preuser) {
+            return res.status(400).send({ message: "This username is already registered. Try another username." });
+        }
+
+        let userProfileImage;
+        if (req.files && req.files.userProfileImage) {
+            const image = req.files.userProfileImage;
+            const finalName = username.replace(/\s+/g, '_');
+            const userProfileDir = path.join(__dirname, '..', 'userProfile'); // Define the directory to store user profile images
+            if (!fs.existsSync(userProfileDir)) {
+                fs.mkdirSync(userProfileDir, { recursive: true });
+            }
+            const imageName = `${finalName}_${Date.now()}_${image.name}`;
+            const imagePath = path.join(userProfileDir, imageName);
+
+            // Move the image file to the user profile directory
+            await image.mv(imagePath);
+
+            // Construct the userProfileImage URL
+            userProfileImage = `https://salesman.aindriya.co.in/userProfile/original/${imageName}`;
+        }
+
+        const user = await User.create({
+            username: username,
+            password: hashedPassword,
+            role: 'user',
+            adminId: admin.id,
+            phoneNumber: phoneNumber,
+            emailId: emailId,
+            userProfileImage: userProfileImage,
+            logoutStatus: availability
+        });
+
+        const token = jwt.sign({ userId: user.id }, secretKey, { expiresIn: '1h' });
+
+        res.status(201).json({ message: 'User created successfully', userId: user.id, token: token });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({ error: 'Error creating user' });
+    }
+};
+
+
 /*
 exports.createItem =async (req,res) =>{
 	try{
@@ -120,8 +208,9 @@ exports.createItem =async (req,res) =>{
 
 exports.createItem = async (req, res) => {
     try {
-        const { name, price, quantity, description } = req.body;
-
+        const { name, price, quantity, availability, attribute, itemCode } = req.body;
+	console.log("req.body----------",req.body);
+	console.log("req.files----------",req.files);
         // Create directory for original images if it doesn't exist
         const originalImageDir = `${ItemPath}/original`;
         if (!fs.existsSync(originalImageDir)) {
@@ -168,7 +257,9 @@ exports.createItem = async (req, res) => {
             thumbnail: thumbnailImageUrl, // Store URL of thumbnail image in the database
             price: price,
             quantity: quantity,
-            description: description,
+	    attribute: attribute,
+	    itemCode: itemCode,
+            availability: availability,
             createdAt: new Date(),
             updatedAt: new Date()
         });
@@ -234,7 +325,7 @@ exports.createItem = async (req, res) => {
 exports.updateItem = async (req, res) => {
     try {
         const id = req.params.id;
-        const { name, price, quantity, description } = req.body;
+        const { name, price, quantity, availability, attribute } = req.body;
         const item = await Item.findOne({ where: { id: id } });
 
         if (!item) {
@@ -250,8 +341,14 @@ exports.updateItem = async (req, res) => {
         if (quantity !== undefined) {
             item.quantity = quantity;
         }
-        if (description !== undefined) {
-            item.description = description;
+        if (attribute !== undefined){
+	   item.attribute =attribute;
+	}
+ 	if (itemCode !== undefined){
+           item.itemCode =itemCode;
+	}
+        if (availability !== undefined) {
+            item.availability = availability;
         }
         if (req.files) {
             // Create directory for original images if it doesn't exist
@@ -363,6 +460,16 @@ exports.createLocation = async (req,res) =>{
 }
 
 
+exports.getAllUser = async (req,res)=>{
+	try{
+		const user = await  User.findAll();
+console.log("user-------",user);
+	return res.status(201).json({user})
+	}catch(error){
+	return res.status(500).json({ message: 'Internal server Error' });
+
+	}
+}
 
 //const Location = require('../models/location');
 

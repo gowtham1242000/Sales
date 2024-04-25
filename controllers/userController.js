@@ -40,263 +40,8 @@ exports.userSignin = async (req,res) => {
 
 }
 
-/*exports.createShop = async (req, res) => {
-    const id = req.params.id;
-const image = req.files.shopImage;
-//    const id = req.params.id;
-    console.log("image-----",image)
-
-    try {
-        const { shopname, location, address, emailId, contectnumber } = req.body; // Corrected variable name
-        console.log("shopname-----", shopname);
-        
-        // Find the user by ID
-        const user = await User.findOne({ where: { id: id } });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" }); // Updated status code and message
-        }
-
-        var finalName =shopname.replace(/\s+/g, '_');
-        const desImageDir = `${shopImage}${finalName}`;
-
-        if (!fs.existsSync(desImageDir)) {
-            fs.mkdirSync(desImageDir, { recursive: true });
-        }
-
-        var desImageUrl = '';
-        fs.writeFileSync(`${desImageDir}/${req.files.shopImage.name}`,req.files.shopImage.data, 'binary');
-        destinationImgUrl = `http://64.227.139.72${shopImagePath}/${finalName}/${req.files.shopImage.name}`;
-
-        // Create a new shop associated with the user
-        const shop = await Shop.create({
-            shopname,
-            location,
-            address,
-            emailId,
-            contectnumber,
-            shopImage:destinationImgUrl,
-            userId: user.id // Corrected capitalization of 'UserId'
-        });
-        
-        // Return success response
-        return res.status(201).json({ message: "Shop created successfully", shop }); // Updated response message
-        
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-
-}*/
-/*
-exports.createShop = async (req, res) => {
-    const image = req.files.shopImage;
-    const id = req.params.id;
-
-    try {
-        const { shopname, location, address, emailId, contectnumber } = req.body;
-        
-        const user = await User.findOne({ where: { id: id } });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // Create directory for original images if it doesn't exist
-        const originalImageDir = `${shopImage}/original`;
-        if (!fs.existsSync(originalImageDir)) {
-            fs.mkdirSync(originalImageDir, { recursive: true });
-        }
-
-        // Save original image
-        const originalImagePath = `${originalImageDir}/${image.name}`;
-        await image.mv(originalImagePath);
-
-        // Create thumbnails directory if it doesn't exist
-        const thumbnailDir = `${shopImage}/thumbnails`;
-        if (!fs.existsSync(thumbnailDir)) {
-            fs.mkdirSync(thumbnailDir, { recursive: true });
-        }
-
-        // Determine file extension and resize accordingly
-        const extension = path.extname(image.name).toLowerCase();
-        const thumbnailImagePath = `${thumbnailDir}/${path.basename(image.name, extension)}.webp`;
-        let pipeline;
-
-        if (extension === '.png' || extension === '.jpg' || extension === '.jpeg') {
-            pipeline = sharp(originalImagePath)
-                .resize({ width: 200, height: 200 })
-                .toFormat('webp') // Convert to WebP format
-                .webp({ quality: 80 }) // Set WebP quality
-                .toFile(thumbnailImagePath);
-        } else {
-//console.log("------------")
-  //          throw new Error('Unsupported file format');
-		return res.status(500).json({ message: "Unsupport Image Format" });
-        }
-
-        // Create thumbnail image
-        await pipeline;
-
-        // Generate URL for original and thumbnail images
-        const originalImageUrl = `http://64.227.139.72${shopImagePath}/original/${image.name}`;
-        const thumbnailImageUrl = `http://64.227.139.72${shopImagePath}/thumbnails/${path.basename(image.name, extension)}.webp`;
-
-        // Create a new shop associated with the user
-        const shop = await Shop.create({
-            shopname,
-            location,
-            address,
-            emailId,
-            contectnumber,
-            shopImage: originalImageUrl, // Store URL of original image in the database
-            thumbnailimage: thumbnailImageUrl, // Store URL of thumbnail image in the database
-            userId: user.id
-        });
-        
-        // Return success response
-        return res.status(201).json({ message: "Shop created successfully", shop });
-        
-    } catch (error) {
-
-        console.error("-------------",error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}
-*/
-/*const { extname, basename } = require('path');
-
-exports.createShop = async (req, res) => {
-    console.log("req.files-------", req.files.shopImage);
-
-    try {
-        const images = req.files && req.files.shopImage; // Assuming the key for images is 'shopImage'
-        const id = req.params.id;
-
-        const { shopname, location, address, emailId, contectnumber, locationCode } = req.body;
-        const parsedLocationCode = JSON.parse(locationCode);
-
-        const user = await User.findOne({ where: { id: id } });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // Initialize arrays for image URLs
-        const shopImages = [];
-        const thumbnailImages = [];
-
-        // Loop through each image if images are provided
-        if (images && Array.isArray(images)) {
-            for (const image of images) {
-                // Process each image here
-                // ... Code to save and process images ...
-
-                // Determine file extension
-                const extension = extname(image.name).toLowerCase();
-
-                // Generate URL for original and thumbnail images
-                const originalImageUrl = `http://localhost${shopImagePath}/original/${image.name}`;
-                const thumbnailImageUrl = `http://localhost${shopImagePath}/thumbnails/${basename(image.name, extension)}.webp`;
-
-                // Push the URLs to the arrays
-                shopImages.push(originalImageUrl);
-                thumbnailImages.push(thumbnailImageUrl);
-            }
-        }
-
-        // Create a new shop associated with the user
-        const shop = await Shop.create({
-            shopname,
-            location,
-            address,
-            emailId,
-            contectnumber,
-            shopImage: shopImages,
-            thumbnailimage: thumbnailImages,
-            locationCode: JSON.stringify(parsedLocationCode),
-            userId: user.id
-        });
-
-        // Return success response
-        return res.status(201).json({ message: "Shop created successfully", shop });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}*/
-
-const { extname, basename } = require('path');
 
 /*exports.createShop = async (req, res) => {
-    console.log("req.files-------", req.files.shopImage);
-
-    try {
-        const images = req.files && req.files.shopImage; // Assuming the key for images is 'shopImage'
-        console.log("images-------------",images)
-	const id = req.params.id;
-
-        const { shopname, location, address, emailId, contectnumber, locationCode } = req.body;
-        const parsedLocationCode = JSON.parse(locationCode);
-
-        const user = await User.findOne({ where: { id: id } });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        // Initialize arrays for image URLs
-        let shopImages = [];
-        let thumbnailImages = [];
-
-        // Check if images are present
-        if (images ) {
-// Array.isArray(images)
-console.log("entering the if condition---------#######33",Array.isArray(images));
-return
-        
-    // Loop through each image if images are provided
-	if (Array.isArray(images)) {
-            for (const image of images) {
-                // Process each image here
-                // ... Code to save and process images ...
-
-                // Determine file extension
-                const extension = extname(image.name).toLowerCase();
-
-                // Generate URL for original and thumbnail images
-                const originalImageUrl = `http://localhost${shopImagePath}/original/${image.name}`;
-                const thumbnailImageUrl = `http://localhost${shopImagePath}/thumbnails/${basename(image.name, extension)}.webp`;
-
-                // Push the URLs to the arrays
-                shopImages.push(originalImageUrl);
-                thumbnailImages.push(thumbnailImageUrl);
-            }
-	}
-        } else {
-            // If no images are uploaded, store empty arrays
-            shopImages = [];
-            thumbnailImages = [];
-        }
-
-        // Create a new shop associated with the user
-        const shop = await Shop.create({
-            shopname,
-            location,
-            address,
-            emailId,
-            contectnumber,
-            shopImage: shopImages,
-            thumbnailimage: thumbnailImages,
-            locationCode: JSON.stringify(parsedLocationCode),
-            userId: user.id
-        });
-
-        // Return success response
-        return res.status(201).json({ message: "Shop created successfully", shop });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}*/
-
-exports.createShop = async (req, res) => {
 //    console.log("req.files-------", req.files.shopImage);
 
     try {
@@ -383,6 +128,93 @@ exports.createShop = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 }
+
+*/
+
+const { extname, basename } = require("path");
+exports.createShop = async (req, res) => {
+    console.log("req.files-------", req.files);
+    console.log("req.body---------",req.body)
+    try {
+        const images = req.files && req.files.shopImage; // Assuming the key for images is 'shopImage'
+        const id = req.params.id;
+
+        const { shopname, location, address, emailId, contectnumber, locationCode, shopCode, availability } = req.body;
+        console.log("locationCode--------",locationCode)
+
+	const parsedLocationCode = JSON.parse(locationCode);
+
+        const user = await User.findOne({ where: { id: id } });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Create directory for original images if it doesn't exist
+        const originalImageDir = `/etc/ec/data/shopImage/original`;
+        if (!fs.existsSync(originalImageDir)) {
+            fs.mkdirSync(originalImageDir, { recursive: true });
+        }
+
+        // Create directory for thumbnail images if it doesn't exist
+        const thumbnailDir = `/etc/ec/data/shopImage/thumbnails`;
+        if (!fs.existsSync(thumbnailDir)) {
+            fs.mkdirSync(thumbnailDir, { recursive: true });
+        }
+
+        // Initialize arrays for image URLs
+        const shopImages = [];
+        const thumbnailImages = [];
+	console.log("Images-------",images);
+     
+        // Loop through each image if images are provided
+        if (images && Array.isArray(images)) {
+            for (const image of images) {
+                // Generate file names for original and thumbnail images
+                const originalImageName = `${Date.now()}_${image.name}`;
+                const thumbnailImageName = `${Date.now()}_${basename(image.name, extname(image.name))}.webp`;
+
+                // Generate file paths for original and thumbnail images
+                const originalImagePath = `${originalImageDir}/${originalImageName}`;
+                const thumbnailImagePath = `${thumbnailDir}/${thumbnailImageName}`;
+
+                // Save original image
+                await image.mv(originalImagePath);
+
+                // Resize and save thumbnail image using Sharp
+                await sharp(originalImagePath)
+                    .resize({ width: 200, height: 200 })
+                    .toFormat('webp')
+                    .webp({ quality: 80 })
+                    .toFile(thumbnailImagePath);
+
+                // Push the URLs to the arrays
+                shopImages.push(`https://salesman.aindriya.co.in/shopImage/original/${originalImageName}`);
+                thumbnailImages.push(`https://salesman.aindriya.co.in/shopImage/thumbnails/${thumbnailImageName}`);
+            }
+        }
+
+        // Create a new shop associated with the user
+        const shop = await Shop.create({
+            shopname,
+            location,
+            address,
+            shopCode,
+            availability,
+            emailId,
+            contectnumber,
+            shopImage: shopImages,
+            thumbnailimage: thumbnailImages,
+            locationCode: JSON.stringify(parsedLocationCode),
+            userId: user.id
+        });
+
+        // Return success response
+        return res.status(201).json({ message: "Shop created successfully", shop });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
 
 
@@ -725,7 +557,7 @@ exports.createOrder = async (req, res) => {
 exports.createOrder = async (req, res) => {
     const id = req.params.id;
     try {
-        const { expecteddate, shopId, orderType, status, yourearing, totalAmount, itemId, quantity } = req.body;
+        const { expecteddate, shopId, orderType, orderNo, status, yourearing, totalAmount, itemId, quantity } = req.body;
         const user = await User.findOne({ where: { id: id } });
         const shop = await Shop.findOne({ where: { id: shopId } });
         const sts = await Status.findAll({ where: { id: status } });
@@ -753,6 +585,7 @@ exports.createOrder = async (req, res) => {
             totalAmount,
             orderType,
             statusid: status,
+            orderNo,
             status: data,
             shopName: shop.shopname,
             createdAt: new Date(),
@@ -1097,12 +930,17 @@ console.log("req.body-----",req.params);
 const id =req.params.id;
 const orderCount =await Order.count({where:{userId:id}});
 const totalEarnings = await Order.sum('yourearing', { where: { userId: id } });
-const update =await User.update({ totalOrderPlaced: orderCount,myEarning: totalEarnings },{ where: {id:id}});
+const totalSaleAmount = await Order.sum('totalAmount', {where: {userId: id}});
+const update =await User.update({ totalOrderPlaced: orderCount,myEarning: totalEarnings,totalSaleAmount:totalSaleAmount },{ where: {id:id}});
 const user =await User.findAll({ where :{ id:id }});
+
+console.log("totalSaleAmount-------",totalSaleAmount);
+
 var userData ={
 	name:user[0].username,
             role: user[0].role,
             myearning: user[0].myEarning,
+            totalAmount: totalSaleAmount,
             orders: user[0].totalOrderPlaced, // Assuming orders is an array of order objects
             userProfileImage:user[0].userProfileImage,
             phonenumber: user[0].phonenumber,
@@ -1382,6 +1220,7 @@ exports.getShops = async (req, res) => {
         // Fetch shops with pagination
         const shops = await Shop.findAll({
             limit: pageSize,
+            order:[['createdAt','DESC']],
             offset: (page - 1) * pageSize // Calculate the offset
         });
 
@@ -1487,17 +1326,15 @@ exports.getShopsDetails = async (req, res) => {
         if (!shop) {
             return res.status(404).json({ message: "Shop not found" });
         }
-
         // Function to convert stored string into JSON array of URLs
-        function convertToJSON(input) {
-            if (!input) return [];
-            // Remove curly braces, extra quotes, and split the string into an array
-            return input.replace(/[{}"]/g, '').split(',')
-                        .map(url => {
-                            // Trim any whitespace
-                            return { url: url.trim() };
-                        });
-        }
+	function convertToJSON(input) {
+    if (!input || !Array.isArray(input)) return [];
+    // Iterate over each element of the array
+    return input.map(url => {
+        // Trim any whitespace and return as a JSON object
+        return { url: url.trim() };
+    });
+}
 
         // Convert the images and thumbnails from strings to structured JSON
         shop.dataValues.shopImage = convertToJSON(shop.shopImage);
@@ -1537,8 +1374,8 @@ try {
         // Define search criteria
         const searchCriteria = {
             [Op.or]: [
-                { name: { [Op.iLike]: `%${keyword}%` } }, // Case-insensitive search for item name
-                { description: { [Op.iLike]: `%${keyword}%` } } // Case-insensitive search for item description
+                { name: { [Op.iLike]: `%${keyword}%` } } // Case-insensitive search for item name
+        //        { description: { [Op.iLike]: `%${keyword}%` } } // Case-insensitive search for item description
             ]
         };
 
@@ -1617,184 +1454,6 @@ exports.getStatus =async (req,res) =>{
     }
 }
 
-/*exports.getEarning = async (req, res) => {
-    try {
-        const userId = req.query.userId;
-        const startDate = req.query.startDate;
-        const endDate = req.query.endDate;
-
-        // Prepare the filter object based on the provided parameters
-        const filter = {
-            userId: userId
-        };
-        
-        // Add date range criteria if both startDate and endDate are provided
-        if (startDate && endDate) {
-            filter.createdAt = { $gte: startDate, $lte: endDate };
-        }
-
-        // Query the database for orders that match the given userId and fall within the date range (if provided)
-        const orders = await Order.findAll({
-            where: filter
-        });
-
-        const responseData = orders.map(order => ({
-            totalAmount: order.totalAmount,
-            updatedAt: order.updatedAt,
-            orderNo: order.orderNo
-        }));
-
-        // Send the response
-        res.json(responseData);
-    } catch (error) {
-        // Handle error
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-};*/
-/*exports.getEarning = async (req, res) => {
-    try {
-        const userId = req.query.userId;
-        const startDate = req.query.startDate;
-        const endDate = req.query.endDate;
-
-        // Parse the page number from the query string, default to 1 if not provided
-        const page = parseInt(req.query.page) || 1;
-        
-        // Define the number of orders per page
-        const ordersPerPage = 10;
-
-        // Calculate the offset
-        const offset = (page - 1) * ordersPerPage;
-
-        // Prepare the filter object based on the provided parameters
-        const filter = {
-            userId: userId
-        };
-        
-        // Add date range criteria if both startDate and endDate are provided
-        if (startDate && endDate) {
-            filter.createdAt = { $gte: startDate, $lte: endDate };
-        }
-
-        // Query the database for orders that match the given userId and fall within the date range (if provided)
-        const orders = await Order.findAll({
-            where: filter,
-            offset: offset,
-            limit: ordersPerPage
-        });
-	const totalPages = Math.ceil(orders.count / ordersPerPage);
-
-    // Calculate total earnings
-    const totalEarnings = orders.rows.reduce((total, order) => total + order.totalAmount, 0);
-
-        const responseData = {orders:orders.rows.map(order => ({
-            totalAmount: order.totalAmount,
-            updatedAt: order.updatedAt,
-            orderNo: order.orderNo
-        })),totalOrders: orders.count,
-        totalPages: totalPages,
-        totalEarnings: totalEarnings};
-
-        // Send the response
-        res.json(responseData);
-    } catch (error) {
-        // Handle error
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-};*/
-
-
-/*exports.getDeliveries = async (req,res) =>{
-    const id =req.params.id;
-    console.log("id----",id)
-    try{
-        const userId =req.params.userId;
-
-        const orders =await Order.findAll({
-            where: {userId:id,
-                status: ['Delivered', 'Invoiced']}
-            });
-         const formattedOrders = orders.map(order => {
-            const formattedCreatedAt = new Date(order.createdAt).toISOString().split('T')[0];
-            const formattedUpdatedAt = new Date(order.updatedAt).toISOString().split('T')[0];
-
-            return {
-                ...order.toJSON(),
-                createdAt: formattedCreatedAt,
-                updatedAt: formattedUpdatedAt
-            };
-        });
-
-          res.json({message:'wGetting Orders data Successfully',orders:formattedOrders});
-
-        //return
-    }catch(error){
-        console.error('Error fetching data from Order tables:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-
-}*/
-
-/*exports.getEarning = async (req, res) => {
-    try {
-        const userId = req.query.userId;
-        const startDate = req.query.startDate;
-        const endDate = req.query.endDate;
-
-        // Parse the page number from the query string, default to 1 if not provided
-        const page = parseInt(req.query.page) || 1;
-
-        // Define the number of orders per page
-        const ordersPerPage = 10;
-
-        // Calculate the offset
-        const offset = (page - 1) * ordersPerPage;
-
-        // Prepare the filter object based on the provided parameters
-        const filter = {
-            userId: userId
-        };
-
-        // Add date range criteria if both startDate and endDate are provided
-        if (startDate && endDate) {
-            filter.createdAt = { $gte: startDate, $lte: endDate };
-        }
-
-        // Query the database for orders that match the given userId and fall within the date range (if provided)
-        const orders = await Order.findAndCountAll({
-            where: filter,
-            offset: offset,
-            limit: ordersPerPage,
-            raw: true // Get raw JSON data directly from the database
-        });
-
-        const totalOrders = orders.count;
-        const totalPages = Math.ceil(totalOrders / ordersPerPage);
-
-        // Calculate total earnings
-        const totalEarnings = orders.rows.reduce((total, order) => total + order.totalAmount, 0);
-
-        const responseData = {
-            orders: orders.rows.map(order => ({
-                totalAmount: order.totalAmount,
-                updatedAt: order.updatedAt,
-                orderNo: order.orderNo
-            })),
-            totalOrders: totalOrders,
-            totalPages: totalPages,
-            totalEarnings: totalEarnings
-        };
-
-        // Send the response
-        res.json(responseData);
-    } catch (error) {
-        // Handle error
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-};*/
 
 exports.getEarning = async (req, res) => {
     try {
@@ -1839,11 +1498,11 @@ exports.getEarning = async (req, res) => {
         const totalPages = Math.ceil(totalOrders / ordersPerPage);
 
         // Calculate total earnings
-        const totalEarnings = orders.rows.reduce((total, order) => total + order.totalAmount, 0);
+        const totalEarnings = orders.rows.reduce((total, order) => total + order.yourearing, 0);
 
         const responseData = {
             orders: orders.rows.map(order => ({
-                totalAmount: order.totalAmount,
+                earningAmount: order.yourearing,
                 updatedAt: order.updatedAt,
                 orderNo: order.orderNo
             })),
@@ -1861,45 +1520,72 @@ exports.getEarning = async (req, res) => {
     }
 };
 
-
-
-/*exports.getDeliveries = async (req, res) => {
+exports.getTotalItemSales = async (req,res) =>{
+	
+	async function calculateTotalPriceByUser(userId) {
+		
     try {
-        const userId = req.params.id;
-        const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
-        const pageSize = 6; // Number of records per page
+        // Find all rows in the OrderItems table for the specified userId
+        const orderItems = await OrderItem.findAll({ where: { userId } });
 
-        // Calculate the offset based on the page number and page size
-        const offset = (page - 1) * pageSize;
+        const totalPriceByItems = {};
 
-        const orders = await Order.findAll({
-            where: {
-                userId: userId, // Use the extracted userId without any additional parameters
-                status: ['Delivered', 'Invoiced']
-            },
-            limit: pageSize, // Limit the number of records returned per page
-            offset: offset // Offset to skip records based on the page number
-        });
+        // Iterate through each row in the OrderItems table
+        for (const orderItem of orderItems) {
+            const { itemId, quantity } = orderItem;
 
-        // Format the orders
-        const formattedOrders = orders.map(order => {
-            const formattedCreatedAt = new Date(order.createdAt).toISOString().split('T')[0];
-            const formattedUpdatedAt = new Date(order.updatedAt).toISOString().split('T')[0];
+            // Use itemId to find the corresponding item in the Items table
+            const item = await Item.findOne({ where: { id: itemId } });
 
-            return {
-                ...order.toJSON(),
-                createdAt: formattedCreatedAt,
-                updatedAt: formattedUpdatedAt
-            };
-        });
+            // If item exists, calculate total price for this item and add to totalPriceByItems
+            if (item) {
+                const itemName = item.name;
+                const itemPrice = item.price;
+                const totalAmount = itemPrice * quantity;
 
-        // Send the paginated orders as a response
-        res.json({ message: 'Getting Orders data Successfully', orders: formattedOrders });
+                // If item already exists in totalPriceByItems, aggregate quantity and amount
+                if (totalPriceByItems[itemName]) {
+                    totalPriceByItems[itemName].totalQuantity += quantity;
+                    totalPriceByItems[itemName].totalAmount += totalAmount;
+                } else {
+                    totalPriceByItems[itemName] = {
+                        itemImage: item.image, // Assuming 'image' is the field name for item image in the Item model
+                        totalQuantity: quantity,
+                        totalAmount: totalAmount
+                    };
+                }
+            }
+        }
+
+        // Convert totalPriceByItems object to array for response
+        const totalPriceArray = Object.keys(totalPriceByItems).map(itemName => ({
+            itemName: itemName,
+            itemImage: totalPriceByItems[itemName].itemImage,
+            totalQuantity: totalPriceByItems[itemName].totalQuantity,
+            totalAmount: totalPriceByItems[itemName].totalAmount
+        }));
+
+        return totalPriceArray;
     } catch (error) {
-        console.error('Error fetching data from Order tables:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error('Error calculating total price:', error);
+        throw error;
     }
-}*/
+}
+
+
+
+
+const userId = 2;
+calculateTotalPriceByUser(userId)
+    .then(totalPriceArray => {
+        console.log('Total Price:', totalPriceArray);
+	if(totalPriceArray) return res.status(201).json(totalPriceArray)
+    })
+    .catch(error => {
+	res.status(500).json("Internal server Error")
+        console.error('Error:', error);
+    });
+}
 
 
 exports.getDeliveries = async (req, res) => {
@@ -2149,6 +1835,83 @@ exports.getReturnOrders = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 }*/
+
+exports.getAllReturnOrders = async (req,res) =>{
+	/*try {
+        // Fetch return orders
+        const returnOrders = await ReturnItem.findAll({
+            include: {
+                model: ReturnOrderItem,
+                attributes: ['returnNo', 'quantityReturned'],
+            },
+            attributes: ['id', 'shopId', 'shopName', 'yourearing', 'statusId', 'orderNo', 'userId', 'totalAmount', 'deliveryDate', 'createdAt', 'updatedAt'],
+            order: [['createdAt','DESC']]
+        });
+        // Fetch status based on statusId
+        const statuses = await Status.findAll(); // Fetch all statuses
+        // Create a map of statusId to status object
+        const statusMap = {};
+        statuses.forEach(status => {
+            statusMap[status.id] = status;
+        });
+        // Create a new array with the desired properties, including totalQuantityReturned and status
+        const returnOrdersWithTotalQuantity = returnOrders.map(returnOrder => {
+            let totalQuantityReturned = 0;
+            returnOrder.ReturnOrderItems.forEach(returnOrderItem => {
+                totalQuantityReturned += parseInt(returnOrderItem.quantityReturned);
+            });
+            // Create a new object with the desired properties, including totalQuantityReturned and status
+            return {
+                ...returnOrder.toJSON(), // Convert returnOrder to JSON
+                totalQuantityReturned: totalQuantityReturned,
+                status: statusMap[returnOrder.statusId], // Access status from the map
+            };
+        });
+
+        res.status(200).json(returnOrdersWithTotalQuantity);
+    } catch (error) {
+        console.error("Error fetching return orders:----------", error);
+        res.status(500).json({ message: "Internal server error" });
+    }*/
+
+try {
+    // Fetch return orders along with associated user details
+    const returnOrders = await ReturnItem.findAll({
+        include: [
+            {
+                model: ReturnOrderItem,
+                attributes: ['returnNo', 'quantityReturned'],
+            },
+            {
+        	        model: User, // Include the User model
+                attributes: ['id', 'username', 'userProfileImage'], // Specify the attributes to include
+            }
+        ],
+        attributes: ['id', 'shopId', 'shopName', 'yourearing', 'statusId', 'orderNo', 'userId', 'totalAmount', 'deliveryDate', 'createdAt', 'updatedAt'],
+        order: [['createdAt', 'DESC']]
+    });
+
+    // Map return orders and extract user details
+    const returnOrdersWithUserDetails = returnOrders.map(returnOrder => {
+        const user = returnOrder.User; // Get the associated user
+        return {
+            ...returnOrder.toJSON(), // Convert returnOrder to JSON
+            user: { // Include user details in the response
+                id: user.id,
+                username: user.username,
+                userProfileImage: user.userProfileImage
+            }
+        };
+    });
+
+    res.status(200).json(returnOrdersWithUserDetails);
+} catch (error) {
+    console.error("Error fetching return orders:----------", error);
+    res.status(500).json({ message: "Internal server error" });
+}
+
+
+}
 
 exports.getReturnOrders = async (req, res) => {
     console.log("req.params.userId---------", req.params.userId);
@@ -2556,6 +2319,8 @@ return
 */
 
 exports.searchAndFilterShops = async (req, res) => {
+
+console.log("******************")
     try {
         const { shopname, fromDate, toDate } = req.query;
         console.log("shopname--------", shopname);
@@ -2639,3 +2404,9 @@ exports.getLocation = async (req, res) => {
         return res.status(500).json({ message: 'Failed to fetch locations' });
     }
 };
+
+
+
+
+
+

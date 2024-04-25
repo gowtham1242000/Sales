@@ -31,4 +31,7 @@ router.get('/searchAndFilterShops', userController.searchAndFilterShops);
 router.get('/getOrderDetails/:orderId', userController.getOrderDetails);
 router.post('/userSignout/:userId', userController.userSignout);
 router.get('/getLocation',userController.getLocation);
+router.get('/getAllReturnOrders',userController.getAllReturnOrders);
+router.get('/getTotalItemSales',userController.getTotalItemSales);
+//router.get('/getSearchFilter',userController.getSearchFilter);
 module.exports = router;
