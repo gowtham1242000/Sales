@@ -15,7 +15,8 @@ const order = sequelize.define('Orders', {
   totalAmount:DataTypes.FLOAT,
   status:DataTypes.STRING,
   statusid:DataTypes.INTEGER,
-  orderType:DataTypes.STRING
+  orderType:DataTypes.STRING,
+ invoice: DataTypes.STRING,
   //itemId:DataTypes.ARRAY(DataTypes.INTEGER),
   //quantity:DataTypes.ARRAY(DataTypes.INTEGER)
 });

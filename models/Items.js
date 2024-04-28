@@ -13,6 +13,7 @@ const item = sequelize.define('Items', {
   attribute:DataTypes.STRING,
   thumbnail:DataTypes.STRING,
   itemCode:DataTypes.STRING,
+  itemcommission:DataTypes.INTEGER,
 });
 
 
