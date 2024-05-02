@@ -17,7 +17,6 @@ const orderItem = sequelize.define('OrderItems', {
 });
 
 orderItem.belongsTo(Item, { foreignKey: 'itemId', targetKey: 'id' });
-
 orderItem.belongsTo(Order, { foreignKey: 'orderId', targetKey: 'id' });
 
 orderItem.belongsTo(User, { foreignKey: 'userId', targetKey:'id'});

@@ -1,5 +1,5 @@
-const {Sequelize,Op} = require('sequelize');
-const fs = require('fs').promises;
+const {Sequelize,Op,literal} = require('sequelize');
+const fs = require('fs');
 const util =require('util');
 const mkdir =util.promisify(fs.mkdir);
 const exec = util.promisify(require('child_process').exec);
@@ -250,24 +250,6 @@ exports.deleteShop = async (req, res) => {
 }
 
  const invoiceDir = `/etc/ec/data/invoice`;
-/*async function createInvoiceDirectory() {
-    try {
-        const stats = await fs.stat(invoiceDir);
-        if (stats.isDirectory()) {
-            console.log(`Invoice directory '${invoiceDir}' already exists.`);
-            return;
-        }
-    } catch (error) {
-        console.error("Error checking invoice directory:", error);
-    }
-    try {
-        // Create the directory recursively
-        await fs.mkdir(invoiceDir, { recursive: true });
-        console.log(`Invoice directory '${invoiceDir}' created successfully.`);
-    } catch (error) {
-        console.error(`Error creating invoice directory '${invoiceDir}':`, error);
-    }
-}*/
 
 async function saveInvoice(invoice, orderNo) {
     try {
@@ -321,10 +303,9 @@ exports.createOrder = async (req, res) => {
 	var data = sts[0].dataValues.status;
 	
 	let invoicePath = null;
-	const invoice =req.files.invoice;
-
+	const invoice =req.files && req.files.invoice;
         if (invoice) {
-		invoiceURL = await saveInvoice(invoice, orderNo);
+		invoiceURL = await saveInvoice(invoice, shop.shopname);
 	 }	
 
         // Create the order
@@ -337,7 +318,7 @@ exports.createOrder = async (req, res) => {
             orderType,
             statusid: status,
             orderNo,
-	    invoice:invoiceURL,
+	    invoice:invoicePath,
             status: data,
             shopName: shop.shopname,
             createdAt: new Date(),
@@ -385,7 +366,7 @@ exports.updateOrder = async (req, res) => {
         const orderId = req.params.id;
         console.log("orderId-------", orderId);
         const { expecteddate, shopId, orderType, status, yourearing, totalAmount, itemId, quantity } = req.body;
-
+	console.log("quantity---------",quantity);
         // Verify that the order exists
         const order = await Order.findOne({ where: { id: orderId } });
         console.log("order----------", order);
@@ -419,7 +400,13 @@ exports.updateOrder = async (req, res) => {
         if (totalAmount !== undefined) {
             order.totalAmount = totalAmount;
         }
-
+	if (req.files && req.files.invoice !== undefined){
+	const invoice =req.files.invoice;
+		if (invoice) {
+			invoiceURL = await saveInvoice(invoice, orderNo);
+	 	}
+		order.invoice  =invoiceURL;
+	}
         order.updatedAt = new Date();
         await order.save();
 
@@ -585,42 +572,119 @@ exports.getshopitem = async (req,res) => {
     }
 }
 
-//getOrders
+//getOrderslist
 
 exports.getOrders = async (req, res) => {
-    try {
+/*    try {
         const userId = req.params.userId;
+        const routeId =req.params.routeId;
         const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
         const pageSize = 10; // Number of records per page
-
         // Calculate the offset based on the page number and page size
         const offset = (page - 1) * pageSize;
 	const totalCount = await Order.count({ where: { userId: userId } });
-
         // Calculate the total number of pages
         const totalPages = Math.ceil(totalCount / pageSize);
 
-        const orders = await Order.findAll({
-            where: { userId: userId },
-            include: User,
+const routes = await Location.findAll({
+        where: {
+            salesManId: {
+                [Sequelize.Op.contains]: [userId] // Check if the userId is contained in the salesManId array
+            }
+        }
+    });
+ const locationNames = routes.map(route => route.LocationName);
+const shops =await Shop.findAll({where:{location:{[Sequelize.Op.in]:locationNames}}});
+const shopIds =await shops.map(shopid =>shopid.id);
+const orders = await Order.findAll({
+            where: { shopId: shopIds },
+           // include: User,
             order:[['createdAt','DESC']], // Assuming User is the associated model
             limit: pageSize, // Limit the number of records returned per page
             offset: offset // Offset to skip records based on the page number
         });
-
         // Format the orders with createdAt and updatedAt dates
-        const formattedOrders = orders.map(order => ({
+	const formattedOrders = await Promise.all(orders.map(async order => {
+    // Fetch order items for the current order
+    const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
+    const itemCount = orderItems.length;
+	return {
             ...order.toJSON(),
             createdAt: new Date(order.createdAt).toISOString().split('T')[0],
-            updatedAt: new Date(order.updatedAt).toISOString().split('T')[0]
-        }));
+            updatedAt: new Date(order.updatedAt).toISOString().split('T')[0],
+	    itemCount: itemCount
+}        
+}));
 	
         // Send the paginated and formatted orders as a response
         res.json({ message: 'Getting Orders data successfully', orders: formattedOrders, totalPages: totalPages, totalOrders: totalCount });
     } catch (error) {
         console.error('Error fetching data from Order tables:', error);
         res.status(500).json({ message: 'Internal server error' });
+    }*/
+try {
+    const userId = req.params.userId;
+    const routeId = req.params.routeId;
+    const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
+    const pageSize = 10; // Number of records per page
+    // Calculate the offset based on the page number and page size
+    const offset = (page - 1) * pageSize;
+    const totalCount = await Order.count({ where: { userId: userId } });
+    // Calculate the total number of pages
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    let routes, locationNames, shopIds, orders;
+console.log("routeId-------",routeId)
+    if (userId && routeId) {
+console.log("$$$$$$$$$$$$-------")
+        routes = await Location.findAll({
+            where: {
+                id: routeId // Check if the userId is contained in the salesManId array
+            }
+        });
+        locationNames = routes.map(route => route.LocationName);
+    } else{
+console.log("^^^^^^^^^^^----------")
+        routes = await Location.findAll({
+            where: {
+                salesManId: {
+                    [Sequelize.Op.contains]: [userId] // Check if the userId is contained in the salesManId array
+                }
+            }
+        });
+        locationNames = routes.map(route => route.LocationName);
     }
+console.log("routes-------",routes)
+    const shops = await Shop.findAll({ where: { location: { [Sequelize.Op.in]: locationNames } } });
+    shopIds = shops.map(shop => shop.id);
+console.log("shop----------",shopIds)
+    orders = await Order.findAll({
+        where: { shopId: shopIds },
+        // include: User,
+        order: [['createdAt', 'DESC']], // Assuming User is the associated model
+        limit: pageSize, // Limit the number of records returned per page
+        offset: offset // Offset to skip records based on the page number
+    });
+console.log("orders--------",orders);
+    // Format the orders with createdAt and updatedAt dates
+    const formattedOrders = await Promise.all(orders.map(async order => {
+        // Fetch order items for the current order
+        const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
+        const itemCount = orderItems.length;
+        return {
+            ...order.toJSON(),
+            createdAt: new Date(order.createdAt).toISOString().split('T')[0],
+            updatedAt: new Date(order.updatedAt).toISOString().split('T')[0],
+            itemCount: itemCount
+        };
+    }));
+
+    res.json({ message: 'Getting Orders data successfully', orders: formattedOrders, totalPages: totalPages, totalOrders: totalCount });
+} catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+}
+
 }
 
 //getItems
@@ -655,8 +719,18 @@ exports.getItems = async (req, res) => {
 
 
 //getShops
+//+
 exports.getShops = async (req, res) => {
+//const userId =req.params.userId;
     try {
+//const user =await User.findAll({where:{id:userId}});
+//console.log("user---------",user)
+//const userid =user[0].dataValues.id;
+//console.log("userName",username);
+//const location =await Location.findAll({where:{salesManId:{[Sequelize.Op.in]:[userid]}}});
+//console.log("location-------",location);
+//logging: console.log
+
         const page = parseInt(req.query.page) || 1; // Current page number, default is 1
         const pageSize = parseInt(req.query.pageSize) || 30; // Number of records per page, default is 10
 
@@ -665,7 +739,7 @@ exports.getShops = async (req, res) => {
 
         // Calculate total pages
         const totalPages = Math.ceil(totalShops / pageSize);
-
+	
         // Fetch shops with pagination
         const shops = await Shop.findAll({
             limit: pageSize,
@@ -895,16 +969,57 @@ exports.getEarning = async (req, res) => {
         // Calculate total earnings
         const totalEarnings = orders.rows.reduce((total, order) => total + order.yourearing, 0);
 
-        const responseData = {
+/*        const responseData = {
             orders: orders.rows.map(order => ({
                 earningAmount: order.yourearing,
-                updatedAt: order.updatedAt,
+		updatedTest:order.updatedAt,
+                updatedAt: order.updatedAt.toISOString().substring(0, 10),
+        //        time:{updatedTest.getHours().toString().padStart(2, '0')}:{updatedTest.getMinutes().toString().padStart(2, '0')},
                 orderNo: order.orderNo
             })),
             totalOrders: totalOrders,
             totalPages: totalPages,
             totalEarnings: totalEarnings
+        };*/
+
+/*const responseData = {
+    orders: orders.rows.map(order => {
+        const updatedAt = new Date(order.updatedAt);
+        const time = `${updatedAt.getHours().toString().padStart(2, '0')}:${updatedAt.getMinutes().toString().padStart(2, '0')}`;
+        return {
+            earningAmount: order.yourearing,
+//            updatedTest: order.updatedAt,
+            updatedAt: order.updatedAt.toISOString().substring(0, 10),
+            time: time,
+            orderNo: order.orderNo
         };
+    }),
+    totalOrders: totalOrders,
+    totalPages: totalPages,
+    totalEarnings: totalEarnings
+};*/
+
+const responseData = {
+    orders: orders.rows.map(order => {
+        const updatedAt = new Date(order.updatedAt);
+        let hours = updatedAt.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // Handle midnight (0 hours)
+        const time = `${hours.toString().padStart(2, '0')}:${updatedAt.getMinutes().toString().padStart(2, '0')} ${ampm}`;
+        return {
+            earningAmount: order.yourearing,
+            updatedAt: order.updatedAt.toISOString().substring(0, 10),
+            time: time,
+            orderNo: order.orderNo
+        };
+    }),
+    totalOrders: totalOrders,
+    totalPages: totalPages,
+    totalEarnings: totalEarnings
+};
+
+
 
         // Send the response
         res.json(responseData);
@@ -1192,13 +1307,19 @@ exports.getReturnOrders = async (req, res) => {
         // Create a new array with the desired properties, including totalQuantityReturned and status
         const returnOrdersWithTotalQuantity = returnOrders.map(returnOrder => {
             let totalQuantityReturned = 0;
-            returnOrder.ReturnOrderItems.forEach(returnOrderItem => {
+		const returnNoCount = {};
+                returnOrder.ReturnOrderItems.forEach(returnOrderItem => {
                 totalQuantityReturned += parseInt(returnOrderItem.quantityReturned);
+		const returnNo = returnOrderItem.returnNo;
+        returnNoCount[returnNo] = (returnNoCount[returnNo] || 0) + 1; // Increment the count for returnNo
             });
+		const totalCount = Object.values(returnNoCount).reduce((acc, count) => acc + count, 0);
+console.log("totalItemReturned--------",totalCount)
             // Create a new object with the desired properties, including totalQuantityReturned and status
             return {
                 ...returnOrder.toJSON(), // Convert returnOrder to JSON
                 totalQuantityReturned: totalQuantityReturned,
+                totalItemReturned:totalCount,
                 status: statusMap[returnOrder.statusId], // Access status from the map
             };
         });
@@ -1263,6 +1384,7 @@ exports.getOrderDetails = async (req, res) => {
             shopId: order.shopId, // Assuming shopName is the correct attribute
             orderStatus: order.status,
             statusId: order.statusid,
+	    invoice: order.invoice,
             orderItems: orderItemsWithDetails,
             totalAmount: totalAmount,
             yourEarnings: yourEarnings
@@ -1367,6 +1489,349 @@ exports.getLocation = async (req, res) => {
 
 
 
+/*exports.getShopsRouteFilter =async (req,res)=>{
+	try {
+        // Step 1: Get Location Name from Location ID
+        const locationId = req.params.locationId;
+        const location = await Location.findByPk(locationId);
+
+        if (!location) {
+            return res.status(404).json({ error: 'Location not found' });
+        }
+        const locationName = location.LocationName;
+
+        // Step 2: Find Shops in the Location
+        const shops = await Shop.findAll({
+            where: { location: locationName } // Assuming there's a locationName column in the Shop table
+        });
+
+        // Step 3 & 4: Get Orders from Shops and Retrieve Order Details
+        const formattedOrders = [];
+        for (const shop of shops) {
+            const shopOrders = await Order.findAll({
+                where: { shopId: shop.id }, // Assuming there's a shopId column in the Order table
+            });
+
+            for (const order of shopOrders) {
+                const orderItems = await OrderItem.findAll({
+                    where: { orderId: order.id }
+                });
+                
+                formattedOrders.push({
+                    id: order.id,
+                    orderNo: order.orderNo,
+                    deliveryDate: order.deliveryDate,
+                    shopName: shops.shopName, // Assuming there's a shopName column in the Shop table
+                    shopId: shops.id,
+                    orderStatus: order.orderStatus,
+                    statusId: order.statusId,
+                    invoice: order.invoice,
+                    orderItems: orderItems.map(item => ({
+                        id: item.id,
+                        name: item.name,
+                        price: item.price,
+                        totalPrice: item.totalPrice,
+                        quantityCount: item.quantityCount,
+                        image: item.image
+                    })),
+                    totalAmount: order.totalAmount,
+                    yourEarnings: order.yourEarnings
+                });
+            }
+        }
+console.log("formattedOrders----------------",formattedOrders);
+        res.json(formattedOrders);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}*/
+
+exports.getShopsRouteFilter = async (req, res) => {
+    try {
+        // Step 1: Get Location Name from Location ID
+        const locationId = req.params.locationId;
+        const location = await Location.findByPk(locationId);
+
+        if (!location) {
+            return res.status(404).json({ error: 'Location not found' });
+        }
+        const locationName = location.LocationName;
+
+        // Step 2: Find Shops in the Location
+        const shops = await Shop.findAll({
+            where: { location: locationName } // Assuming there's a locationName column in the Shop table
+        });
+
+        // Step 3 & 4: Get Orders from Shops and Retrieve Order Details
+        const formattedOrders = [];
+
+        for (const shop of shops) {
+            const shopOrders = await Order.findAll({
+                where: { shopId: shop.id }, // Assuming there's a shopId column in the Order table
+            });
+
+            for (const order of shopOrders) {
+                const orderItems = await OrderItem.findAll({
+                    where: { orderId: order.id }
+                });
+console.log("orderItems---------------",orderItems)
+
+                formattedOrders.push({
+                    id: order.id,
+                    orderNo: order.orderNo,
+                    deliveryDate: order.deliveryDate,
+                    shopName: shop.shopname, // Corrected: accessing shop.shopname
+                    shopId: shop.id,
+                    orderStatus: order.orderStatus,
+                    statusId: order.statusId,
+                    invoice: order.invoice,
+                    orderItems: orderItems.map(item => ({
+                        id: item.id,
+                        name: item.itemId,
+                        Price: item.totalAmount,
+                        quantityCount: item.quantity,
+                        image: item.image
+                    })),
+                    totalAmount: order.totalAmount,
+                    yourEarnings: order.yourEarnings
+                });
+            }
+        }
+        console.log("formattedOrders----------------", formattedOrders);
+        res.json(formattedOrders);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
 
 
 
+
+/*exports.filterbydate = async function (req, res) {
+    try {
+	const filter = req.query.filter;
+        let startDate, endDate;
+	
+
+
+        switch (filter) {
+            case 'today':
+                startDate = getTodayDate();
+                endDate = getTodayDate(); // Today's date
+                break;
+            case 'yesterday':
+                startDate = getYesterdayDate();
+                endDate = getYesterdayDate(); // Yesterday's date
+                break;
+            case 'oneMonth':
+                startDate = getOneMonthAgoDate();
+                endDate = getTodayDate(); // Today's date
+                break;
+            case 'custom':
+                // Assuming req.body contains start and end dates for custom filter
+                startDate = req.body.startDate;
+                endDate = req.body.endDate;
+                break;
+            default:
+                return res.status(400).json({ error: 'Invalid filter option' });
+        }
+
+	const queryCriteria = {
+             startDate,
+            endDate
+        }
+	
+        // Call your API with startDate and endDate to retrieve filtered data
+        const filteredData = await callAPIWithDateRange(startDate,endDate);
+
+        res.json(filteredData);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+// Helper functions for date calculations
+function getTodayDate() {
+console.log("enter the function or not")
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
+}
+
+function getYesterdayDate() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
+}
+
+function getOneMonthAgoDate() {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    return oneMonthAgo.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
+}
+
+
+async function callAPIWithDateRange(startDate, endDate) {
+console.log("startDate-------------",startDate)
+console.log("endDate---------------",endDate)
+
+    try {
+        // Query the Order table for orders within the specified date range
+        const filteredOrders = await Order.findAll({
+            attributes: [
+                'id', 'expecteddate', 'shopId', 'shopName', 'userId', 'orderNo',
+                'yourearing', 'totalAmount', 'status', 'statusid', 'orderType',
+                'invoice', 'createdAt', 'updatedAt'
+            ],
+		where:literal(`DATE("createdAt") BETWEEN DATE(:startDate) AND DATE(:endDate)`),
+                 replacements: { startDate, endDate }		
+        });
+
+        // Return the filtered orders
+        return filteredOrders;
+    } catch (error) {
+        // Handle any errors
+        console.error('Error fetching orders:', error);
+        throw new Error('Failed to fetch orders');
+    }
+
+}
+*/
+
+
+exports.filterbydate = async function (req, res) {
+    try {
+        const filter = req.query.filter;
+        let startDate, endDate, shopName;
+
+        switch (filter) {
+            case 'today':
+                startDate = getTodayDate();
+                endDate = getTodayDate(); // Today's date
+                break;
+            case 'yesterday':
+                startDate = getYesterdayDate();
+                endDate = getYesterdayDate(); // Yesterday's date
+                break;
+            case 'oneMonth':
+                startDate = getOneMonthAgoDate();
+                endDate = getTodayDate(); // Today's date
+                shopName = req.query.shopName; // Get shopName from query parameters
+                break;
+            case 'custom':
+                // Assuming req.body contains start and end dates for custom filter
+                startDate = req.query.startDate;
+                endDate = req.query.endDate;
+                break;
+            default:
+                return res.status(400).json({ error: 'Invalid filter option' });
+        }
+console.log("startDate-------",startDate)
+console.log("endDate--------",endDate)
+        const queryCriteria = {
+            startDate,
+            endDate,
+            shopName
+        };
+console.log("queryCriteria-------",queryCriteria)
+        // Call your API with startDate, endDate, and shopName to retrieve filtered data
+        const filteredData = await callAPIWithDateRange(queryCriteria);
+
+        res.json(filteredData);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+// Helper function to get the date one month ago
+function getTodayDate() {
+console.log("enter the function or not")
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
+}
+
+function getYesterdayDate() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
+}
+
+function getOneMonthAgoDate() {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    return oneMonthAgo.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
+}
+
+// Modify the callAPIWithDateRange function to accept queryCriteria object
+async function callAPIWithDateRange(queryCriteria) {
+    const { startDate, endDate, shopName } = queryCriteria;
+console.log("startdate-----",startDate);
+console.log("endDate",endDate);
+    try {
+        // Query the Order table for orders within the specified date range and shopName
+        const filteredOrders = await Order.findAll({
+            attributes: [
+                'id', 'expecteddate', 'shopId', 'shopName', 'userId', 'orderNo',
+                'yourearing', 'totalAmount', 'status', 'statusid', 'orderType',
+                'invoice', 'createdAt', 'updatedAt'
+            ],
+            where: {
+                createdAt: {
+                    [Op.between]: [startDate, endDate]
+                },
+                ...(shopName && { shopName }) // Include shopName condition only if it's provided
+            }
+        });
+
+        // Return the filtered orders
+        return filteredOrders;
+    } catch (error) {
+        // Handle any errors
+        console.error('Error fetching orders:', error);
+        throw new Error('Failed to fetch orders');
+    }
+}
+
+//getAllUser
+exports.getAllUser = async (req,res)=>{
+try{
+const user =await User.findAll({where:{role:'user'}});
+res.status(200).json(user)
+}catch(error){
+console.log("error",error)
+}
+}
+
+
+
+///getUserRoute
+
+exports.getUserRoute = async (req,res) =>{
+console.log("req.params.userId---------",req.params)
+const userId =req.params.userId;
+try{
+const routes = await Location.findAll({
+        where: {
+            salesManId: {
+                [Sequelize.Op.contains]: [userId] // Check if the userId is contained in the salesManId array
+            }
+        }
+    });
+res.status(200).json(routes)
+}catch (error){
+console.log("error",error)
+}
+}
+
+
+exports.getAllOrder = async (req,res) =>{
+try{ 
+const orders = await Order.findAll();
+res.status(200).json(orders);
+}catch(error){
+console.log("error",error)
+}
+}

@@ -4,7 +4,7 @@ const sequelize = require('../config/config');
 const item = sequelize.define('Items', {
   name:DataTypes.STRING,
   price:DataTypes.INTEGER,
-  quantity :DataTypes.STRING,
+//  quantity :DataTypes.STRING,
   availability: {
     type: DataTypes.BOOLEAN,
     defaultValue: true       // Assume shops are available by default

@@ -208,7 +208,7 @@ exports.createItem =async (req,res) =>{
 
 exports.createItem = async (req, res) => {
     try {
-        const { name, price, quantity, availability, attribute, itemCode } = req.body;
+        const { name, price, availability, attribute, itemCode } = req.body;
 	console.log("req.body----------",req.body);
 	console.log("req.files----------",req.files);
         // Create directory for original images if it doesn't exist
@@ -256,7 +256,6 @@ exports.createItem = async (req, res) => {
             image: originalImageUrl, // Store URL of original image in the database
             thumbnail: thumbnailImageUrl, // Store URL of thumbnail image in the database
             price: price,
-            quantity: quantity,
 	    attribute: attribute,
 	    itemCode: itemCode,
             availability: availability,
@@ -325,7 +324,7 @@ exports.createItem = async (req, res) => {
 exports.updateItem = async (req, res) => {
     try {
         const id = req.params.id;
-        const { name, price, quantity, availability, attribute } = req.body;
+        const { name, price, availability, attribute } = req.body;
         const item = await Item.findOne({ where: { id: id } });
 
         if (!item) {
@@ -337,9 +336,6 @@ exports.updateItem = async (req, res) => {
         }
         if (price !== undefined) {
             item.price = price;
-        }
-        if (quantity !== undefined) {
-            item.quantity = quantity;
         }
         if (attribute !== undefined){
 	   item.attribute =attribute;
@@ -437,25 +433,40 @@ exports.createStatus =async (req,res) =>{
 		res.status(500).json({message:'Internal server Error'})
 	}
 }
-exports.createLocation = async (req,res) =>{
-// Route to handle POST requests to create a new location
-  try {
-    // Extract location details from the request body
-    const { LocationName } = req.body;
 
-    // Create a new location using Sequelize
-    const newLocation = await Location.create({
-      LocationName,
-      createdAt: new Date(),
-       updatedAt: new Date()
+//createLocations
+exports.createLocation = async (req,res) =>{
+console.log("req.body-------",req.body)
+	try {
+    const { LocationName, deliveryDays, salesMan } = req.body;
+
+    if (!LocationName || !deliveryDays || !salesMan || !Array.isArray(salesMan)) {
+      return res.status(400).json({ error: 'Missing or invalid data in request body' });
+    }
+
+    // Fetch user information for the provided salesmen IDs
+    const salesmen = await User.findAll({
+      where: {
+        id: salesMan
+      },
+      attributes: ['username']
     });
 
-    // Send a success response with the newly created location
-    return res.status(201).json({ message: 'Location created successfully', location: newLocation });
+    // Extract usernames from the fetched salesmen
+    const salesmenUsernames = salesmen.map(salesman => salesman.username);
+    // Create the new location in the database
+    const newLocation = await Location.create({
+      LocationName,
+      deliveryDays,
+      salesMan: salesmenUsernames,
+      salesManId:salesMan // Store usernames in the salesMan column
+    });
+
+    // Return the newly created location in the response
+    res.status(201).json(newLocation);
   } catch (error) {
-    console.error(error);
-    // If an error occurs, send an error response
-    return res.status(500).json({ message: 'Failed to create location' });
+    console.error('Error creating location:', error);
+    res.status(500).json({ error: 'Failed to create location' });
   }
 }
 

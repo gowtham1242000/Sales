@@ -23,7 +23,6 @@ const order = sequelize.define('Orders', {
 
 order.belongsTo(Shop, { foreignKey: 'shopId', targetKey: 'id' });
 
-
 order.belongsTo(User, { foreignKey:'userId', targetKey:'id'});
 
 module.exports = order;
