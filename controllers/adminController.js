@@ -46,6 +46,7 @@ console.log("req.body---------",req.body);
 //admin signin
 
 exports.signUser = async (req,res) => {
+console.log(req.body)
 	try{
 		const { username, password } = req.body;
 		const user =await User.findOne({ where: { username:username}});
@@ -55,7 +56,7 @@ exports.signUser = async (req,res) => {
         }
         console.log("secretKey------",secretKey)
 		const token = jwt.sign({ userId: user.id }, secretKey,{ expiresIn:'360d'});
-		res.status(200).json({ message: 'Sign-in successful', token: token });	
+		res.status(200).json({ message: 'Sign-in successful', token: token,user });	
 	}catch(error){
 		res.status(500).json({message:"No User found"})
 	}
@@ -119,6 +120,9 @@ exports.createUser = async (req,res) => {
 
 
 exports.createUser = async (req, res) => {
+console.log("-----------",req.body)
+console.log("-----------",req.files)
+
     try {
         const id = req.params.id;
         const { username, password, phoneNumber, salesManId, availability, emailId } = req.body;
@@ -166,7 +170,7 @@ exports.createUser = async (req, res) => {
 
         const token = jwt.sign({ userId: user.id }, secretKey, { expiresIn: '1h' });
 
-        res.status(201).json({ message: 'User created successfully', userId: user.id, token: token });
+        res.status(201).json({ message: 'User created successfully', userId: user.id, token: token, user });
     } catch (error) {
         console.error('Error creating user:', error);
         res.status(500).json({ error: 'Error creating user' });
@@ -208,7 +212,7 @@ exports.createItem =async (req,res) =>{
 
 exports.createItem = async (req, res) => {
     try {
-        const { name, price, availability, attribute, itemCode } = req.body;
+        const { name, price, availability, attribute, itemCode, itemcommission } = req.body;
 	console.log("req.body----------",req.body);
 	console.log("req.files----------",req.files);
         // Create directory for original images if it doesn't exist
@@ -258,6 +262,7 @@ exports.createItem = async (req, res) => {
             price: price,
 	    attribute: attribute,
 	    itemCode: itemCode,
+	    itemcommission:itemcommission,
             availability: availability,
             createdAt: new Date(),
             updatedAt: new Date()
@@ -471,7 +476,7 @@ console.log("req.body-------",req.body)
 }
 
 
-exports.getAllUser = async (req,res)=>{
+/*exports.getAllUser = async (req,res)=>{
 	try{
 		const user = await  User.findAll();
 console.log("user-------",user);
@@ -480,7 +485,49 @@ console.log("user-------",user);
 	return res.status(500).json({ message: 'Internal server Error' });
 
 	}
+}*/
+
+exports.getAllUser = async (req, res) => {
+	try {
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 0; // Default page is 1
+    const limit = parseInt(req.query.limit) || 10; // Default limit is 10
+
+    // Calculate offset for pagination
+    const offset = (page - 1) * limit;
+
+    // Fetch total number of users
+    const totalUsers = await User.count();
+
+    // Calculate total number of pages
+    const totalPages = Math.ceil(totalUsers / limit);
+
+    let users; // Declare users variable outside the conditional blocks
+
+    if (page === 0) {
+console.log("-----------")
+        // Fetch users without pagination
+        users = await User.findAll({
+       //     order: [['createdAt', 'DESC']]
+        });
+    } else {
+console.log("+++++++")
+        // Fetch users with pagination
+        users = await User.findAll({
+            offset: offset,
+            limit: limit,
+            order: [['createdAt', 'DESC']]
+        });
+    }
+
+    return res.status(200).json({ users, totalPages, totalUsers });
+} catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ message: 'Internal server error' });
 }
+
+};
+
 
 //const Location = require('../models/location');
 

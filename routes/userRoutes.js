@@ -16,7 +16,7 @@ router.get('/getuserprofile/:id', userController.getProfile);
 router.get('/getshop/item', userController.getshopitem);
 router.get('/getAllOrder', userController.getAllOrder);
 router.get('/getOrderslist/:userId/:routeId?', userController.getOrders);
-router.get('/getshops', userController.getShops);
+router.get('/getshops/:userId', userController.getShops);
 router.get('/getItems', userController.getItems);
 router.get('/getshopsDetails/:id', userController.getShopsDetails);
 router.get('/searchitem', userController.searchitem);
@@ -40,5 +40,5 @@ router.get('/getShopsRouteFilter/:locationId',userController.getShopsRouteFilter
 router.get('/filterbydate',userController.filterbydate);
 router.get('/getAllUser',userController.getAllUser);
 router.get('/getUserRoute/:userId',userController.getUserRoute)
-
+router.get('/getAllShops',userController.getAllShops)
 module.exports = router;

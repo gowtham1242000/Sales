@@ -721,66 +721,88 @@ exports.getItems = async (req, res) => {
 //getShops
 //+
 exports.getShops = async (req, res) => {
-//const userId =req.params.userId;
-    try {
-//const user =await User.findAll({where:{id:userId}});
-//console.log("user---------",user)
-//const userid =user[0].dataValues.id;
-//console.log("userName",username);
-//const location =await Location.findAll({where:{salesManId:{[Sequelize.Op.in]:[userid]}}});
-//console.log("location-------",location);
-//logging: console.log
+try {
+    const page = parseInt(req.query.page) || 1; // Current page number, default is 1
+    const pageSize = parseInt(req.query.pageSize) || 40; // Number of records per page, default is 30
 
-        const page = parseInt(req.query.page) || 1; // Current page number, default is 1
-        const pageSize = parseInt(req.query.pageSize) || 30; // Number of records per page, default is 10
+    // Calculate total number of shops
+   const totalShops = await Shop.count();
+console.log("totalShops-------",totalShops);
+    // Calculate total pages
+    const totalPages = Math.ceil(totalShops / pageSize);
+let matchedShops ;
+    // Fetch shops with pagination
+    const shops = await Shop.findAll({
+        limit: pageSize,
+        order: [['createdAt', 'DESC']],
+        offset: (page - 1) * pageSize // Calculate the offset
+    });
 
-        // Calculate total number of shops
-        const totalShops = await Shop.count();
+    // Prepare to fetch order counts for each shop
+    const shopIds = shops.map(shop => shop.id);
 
-        // Calculate total pages
-        const totalPages = Math.ceil(totalShops / pageSize);
-	
-        // Fetch shops with pagination
-        const shops = await Shop.findAll({
-            limit: pageSize,
-            order:[['createdAt','DESC']],
-            offset: (page - 1) * pageSize // Calculate the offset
+    // Aggregate query to count orders for each shopId
+    const orderCounts = await Order.findAll({
+        where: { shopId: shopIds },
+        attributes: ['shopId', [Sequelize.fn('COUNT', Sequelize.col('shopId')), 'totalOrders']],
+        group: ['shopId']
+    });
+
+    // Convert the array of order counts into an object for quick lookup
+    const orderCountMap = orderCounts.reduce((acc, item) => {
+        acc[item.shopId] = item.dataValues.totalOrders;
+        return acc;
+    }, {});
+
+    // Add order count to each shop data
+    const enrichedShops = shops.map(shop => {
+        const shopJson = shop.toJSON();
+        shopJson.totalOrders = orderCountMap[shop.id] || 0; // Use 0 as default if no orders found
+        return shopJson;
+    });
+
+    // If userId is provided, fetch locations for the corresponding salesManId
+    if (req.params.userId) {
+        const userId = req.params.userId;
+console.log("userId-----------",userId);        
+        // Fetch locations where salesManId matches userId
+        const locations = await Location.findAll({
+            where: {
+                salesManId: { [Sequelize.Op.contains]: [userId] }
+            }
         });
+console.log("loactions-------",locations);
 
-        // Prepare to fetch order counts for each shop
-        const shopIds = shops.map(shop => shop.id);
+	const locationNames = locations.map(location => location.dataValues.LocationName);
 
-        // Aggregate query to count orders for each shopId
-        const orderCounts = await Order.findAll({
-            where: { shopId: shopIds },
-            attributes: ['shopId', [Sequelize.fn('COUNT', Sequelize.col('shopId')), 'totalOrders']],
-            group: ['shopId']
+console.log("locationNames--------",locationNames)
+// Find shops with matching LocationName
+//const matchedShops = enrichedShops.filter(shop => locationNames.includes(shop.location));
+//console.log("matchedShops--------",matchedShops)
+        // Add location name to each shop data based on matching salesManId
+        enrichedShops.forEach(shop => {
+            const locationMatch = locations.find(location => location.salesManId.includes(userId));
+            if (locationMatch) {
+                shop.locationName = locationMatch.LocationName;
+            }
+console.log("-0----------0--",locationMatch)
         });
+ matchedShops = enrichedShops.filter(shop => locationNames.includes(shop.location));
+console.log("matchedShops--------",matchedShops)
 
-        // Convert the array of order counts into an object for quick lookup
-        const orderCountMap = orderCounts.reduce((acc, item) => {
-            acc[item.shopId] = item.dataValues.totalOrders;
-            return acc;
-        }, {});
-
-        // Add order count to each shop data
-        const enrichedShops = shops.map(shop => {
-            const shopJson = shop.toJSON();
-            shopJson.totalOrders = orderCountMap[shop.id] || 0; // Use 0 as default if no orders found
-            return shopJson;
-        });
-
-        // Return paginated list of shops with total pages and total shop count
-        return res.status(200).json({
-            totalPages: totalPages,
-            totalShops: totalShops,
-            shops: enrichedShops
-        });
-    } catch (error) {
-        console.error('Error fetching shops and order counts:', error);
-        res.status(500).json({ message: 'Internal server error' });
     }
-};
+
+    // Return paginated list of shops with total pages, total shop count, and location names
+    return res.status(200).json({
+        totalPages: totalPages,
+        totalShops: totalShops,
+        shops: matchedShops
+    });
+} catch (error) {
+    console.error('Error fetching shops and order counts:', error);
+    res.status(500).json({ message: 'Internal server error' });
+}
+}
 
 
 //getShopDetails
@@ -922,6 +944,41 @@ exports.getStatus =async (req,res) =>{
         console.log("getstatus----error",error)
     }
 }
+
+/*exports.getAllShops =async (req,res)=>{
+try{
+        const shops = await Shop.findAll();
+        res.status(200).json({message:'This are the Shop details',shops})
+    }catch(error){
+        console.log("getstatus----error",error)
+    }
+
+}*/
+
+exports.getAllShops = async (req, res) => {
+    const page = req.query.page ? parseInt(req.query.page) : 0;
+    const limit = 10; // Number of shops per page
+
+    try {
+        let shops;
+        if (page <= 0) {
+            // Fetch all shop details
+            shops = await Shop.findAll();
+        } else {
+            // Apply pagination
+            shops = await Shop.findAll({
+                limit: limit,
+                offset: (page - 1) * limit
+            });
+        }
+        
+        res.status(200).json({ message: 'These are the Shop details', shops });
+    } catch (error) {
+        console.log("getStatus----error", error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
 
 //getEarning
 exports.getEarning = async (req, res) => {
@@ -1357,6 +1414,7 @@ exports.getOrderDetails = async (req, res) => {
                 id: item.id,
                 name: item.name,
                 price: item.price,
+                itemcommission: item.itemcommission,
                 totalPrice: itemTotalPrice,
                 quantityCount: orderItem.quantity,
                 image: item.image
@@ -1368,7 +1426,7 @@ exports.getOrderDetails = async (req, res) => {
         let yourEarnings = 0;
 
         orderItems.forEach(orderItem => {
-            totalAmount += orderItem.dataValues.totalAmount || 0;
+           // totalAmount += orderItem.dataValues.totalAmount || 0;
             yourEarnings += orderItem.dataValues.yourearing || 0;
         });
 
@@ -1386,7 +1444,7 @@ exports.getOrderDetails = async (req, res) => {
             statusId: order.statusid,
 	    invoice: order.invoice,
             orderItems: orderItemsWithDetails,
-            totalAmount: totalAmount,
+            totalAmount: order.totalAmount,
             yourEarnings: yourEarnings
         };
 
