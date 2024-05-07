@@ -362,6 +362,7 @@ exports.createOrder = async (req, res) => {
 
 //updateOrder
 exports.updateOrder = async (req, res) => {
+console.log("req.body0----------",req.body);
     try {
         const orderId = req.params.id;
         console.log("orderId-------", orderId);
@@ -390,7 +391,9 @@ exports.updateOrder = async (req, res) => {
         }
 
         if (status !== undefined) {
-            order.status = status;
+	    const sts = await Status.findAll({ where: { id: status } });
+            var data = sts[0].dataValues.status;
+            order.status = data;
         }
 
         if (yourearing !== undefined) {
@@ -411,7 +414,7 @@ exports.updateOrder = async (req, res) => {
         await order.save();
 
         // Update or create order items
-        if (itemId && itemId.length > 0) {
+       /* if (itemId && itemId.length > 0) {
             for (let i = 0; i < itemId.length; i++) {
                 let orderItem;
                 const existingOrderItem = await OrderItem.findOne({ where: { orderId} });
@@ -443,6 +446,38 @@ exports.updateOrder = async (req, res) => {
                 }
             }
         }
+*/
+if (itemId && itemId.length > 0) {
+    for (let i = 0; i < itemId.length; i++) {
+        const existingOrderItem = await OrderItem.findOne({ where: { orderId, itemId: itemId[i] } });
+
+        if (existingOrderItem) {
+            // If order item already exists, update its details
+            await existingOrderItem.update({
+                quantity: quantity[i],
+                yourearing,
+                orderNo: order.orderNo,
+                userId: user.id,
+                totalAmount,
+                updatedAt: new Date()
+            });
+        } else {
+            // If order item doesn't exist, create a new one
+            await OrderItem.create({
+                orderId,
+                itemId: itemId[i],
+                quantity: quantity[i],
+                yourearing,
+                orderNo: order.orderNo,
+                userId: user.id,
+                totalAmount,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+        }
+    }
+}
+	
 
         res.status(200).json({ message: "Order updated successfully" });
     } catch (error) {

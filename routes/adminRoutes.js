@@ -12,6 +12,7 @@ router.delete('/deleteItem/:id', adminController.deleteItem);
 router.post('/createStatus', adminController.createStatus);
 router.post('/createLocation',adminController.createLocation);
 router.get('/getAllUser',adminController.getAllUser);
+router.get('/getDashboardDetails',adminController.getDashboardDetails);
 //router.get('/getLocation',adminController.getLocation);
 
 

@@ -18,6 +18,8 @@ const Status = require('../models/Status');
 const Location = require('../models/Locations');
 const ItemPath='/etc/ec/data/Items/';
 const userProfile='/etc/ec/data/ProfilePath/';
+const Order = require('../models/Orders');
+const ReturnItem =require('../models/ReturnItems');
 
 const URLpathI ='/Items';
 //admin signup
@@ -531,3 +533,28 @@ console.log("+++++++")
 
 //const Location = require('../models/location');
 
+exports.getDashboardDetails =async (req,res)=>{
+	try{
+	const TotalRevenue =await Order.sum('totalAmount');
+	const TotalSalesOrder = await Order.count();
+	const TotalReturnOrder = await ReturnItem.count();
+	const TotalShop = await Shop.count();
+	const userOrderCounts = await Order.findAll({
+    attributes: [
+        'userId', // Select the userId
+        [sequelize.fn('COUNT', sequelize.col('userId')), 'orderCount'] // Count the number of orders for each userId
+    ],
+    group: ['userId'], // Group by userId
+    include: [{
+        model: User, // Include the User model to fetch username and email
+        attributes: ['username', 'emailId'] // Select username and email
+    }]
+});
+
+console.log("userOrderCount------------",userOrderCounts);
+return 
+	res.status(201).json({TotalRevenue,TotalSalesOrder,TotalReturnOrder,TotalShop});
+	}catch(error){
+		console.log("error",error)
+	}
+}
