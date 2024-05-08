@@ -634,53 +634,6 @@ exports.getshopitem = async (req,res) => {
 //getOrderslist
 //+-
 exports.getOrders = async (req, res) => {
-/*    try {
-        const userId = req.params.userId;
-        const routeId =req.params.routeId;
-        const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
-        const pageSize = 10; // Number of records per page
-        // Calculate the offset based on the page number and page size
-        const offset = (page - 1) * pageSize;
-	const totalCount = await Order.count({ where: { userId: userId } });
-        // Calculate the total number of pages
-        const totalPages = Math.ceil(totalCount / pageSize);
-
-const routes = await Location.findAll({
-        where: {
-            salesManId: {
-                [Sequelize.Op.contains]: [userId] // Check if the userId is contained in the salesManId array
-            }
-        }
-    });
- const locationNames = routes.map(route => route.LocationName);
-const shops =await Shop.findAll({where:{location:{[Sequelize.Op.in]:locationNames}}});
-const shopIds =await shops.map(shopid =>shopid.id);
-const orders = await Order.findAll({
-            where: { shopId: shopIds },
-           // include: User,
-            order:[['createdAt','DESC']], // Assuming User is the associated model
-            limit: pageSize, // Limit the number of records returned per page
-            offset: offset // Offset to skip records based on the page number
-        });
-        // Format the orders with createdAt and updatedAt dates
-	const formattedOrders = await Promise.all(orders.map(async order => {
-    // Fetch order items for the current order
-    const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
-    const itemCount = orderItems.length;
-	return {
-            ...order.toJSON(),
-            createdAt: new Date(order.createdAt).toISOString().split('T')[0],
-            updatedAt: new Date(order.updatedAt).toISOString().split('T')[0],
-	    itemCount: itemCount
-}        
-}));
-	
-        // Send the paginated and formatted orders as a response
-        res.json({ message: 'Getting Orders data successfully', orders: formattedOrders, totalPages: totalPages, totalOrders: totalCount });
-    } catch (error) {
-        console.error('Error fetching data from Order tables:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }*/
 try {
     const userId = req.params.userId;
     const routeId = req.params.routeId;
@@ -2003,5 +1956,72 @@ const orders = await Order.findAll();
 res.status(200).json(orders);
 }catch(error){
 console.log("error",error)
+}
+}
+
+//getReturnOrderList
+exports.getReturnOrderList =async (req,res)=>{
+try {
+    const userId = req.params.userId;
+    const routeId = req.params.routeId;
+    const page = parseInt(req.query.page) || 1; // Parse the page number from the query string, default to page 1 if not provided
+    const pageSize = 10; // Number of records per page
+    // Calculate the offset based on the page number and page size
+    const offset = (page - 1) * pageSize;
+    const totalCount = await ReturnItem.count({ where: { userId: userId } });
+    // Calculate the total number of pages
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    let routes, locationNames, shopIds, returnOrders;
+
+    if (userId && routeId) {
+console.log("routeId-------",routeId);
+        routes = await Location.findAll({
+            where: {
+                id: routeId // Check if the userId is contained in the salesManId array
+            }
+        });
+        locationNames = routes.map(route => route.LocationName);
+    } else {
+        user = await User.findAll({ where: { id: userId } })
+        routes = await Location.findAll({
+            where: {
+                salesManId: {
+                    [Sequelize.Op.contains]: [userId] // Check if the userId is contained in the salesManId array
+                }
+            }
+        });
+        locationNames = routes.map(route => route.LocationName);
+    }
+
+    const shops = await Shop.findAll({ where: { location: { [Sequelize.Op.in]: locationNames } } });
+    shopIds = shops.map(shop => shop.id);
+
+    returnOrders = await ReturnItem.findAll({
+        where: { shopId: shopIds,userId:userId },
+        order: [['createdAt', 'DESC']], // Assuming ReturnOrder is the associated model
+        limit: pageSize, // Limit the number of records returned per page
+        offset: offset // Offset to skip records based on the page number
+    });
+console.log("returnOrders---",returnOrders);
+//return
+    // Format the return orders with createdAt and updatedAt dates and return items
+    const formattedReturnOrders = await Promise.all(returnOrders.map(async returnOrder => {
+        // Fetch return items for the current return order
+        const returnItems = await ReturnOrderItem.findAll({ where: { returnOrderId: returnOrder.id } });
+        const itemCount = returnItems.length;
+        return {
+            ...returnOrder.toJSON(),
+            createdAt: new Date(returnOrder.createdAt).toISOString().split('T')[0],
+            updatedAt: new Date(returnOrder.updatedAt).toISOString().split('T')[0],
+            itemCount: itemCount,
+            returnItems: returnItems // Assuming ReturnItem is the associated model
+        };
+    }));
+
+    res.json({ message: 'Getting Return Orders data successfully', returnOrders: formattedReturnOrders, totalPages: totalPages, totalReturnOrders: totalCount });
+} catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
 }
 }
