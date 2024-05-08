@@ -11,15 +11,7 @@ const ReturnItem = sequelize.define('ReturnItem', {
     shopName: DataTypes.STRING,
     yourearing: DataTypes.INTEGER,
     statusId: DataTypes.INTEGER,
-    orderNo: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-        defaultValue: function() {
-            lastReturnNo++;
-            return `RETURN-${lastReturnNo}`;
-        }
-    },
+    orderNo:  DataTypes.STRING,
     userId: DataTypes.INTEGER,
     totalAmount: DataTypes.FLOAT,
     deliveryDate: DataTypes.STRING

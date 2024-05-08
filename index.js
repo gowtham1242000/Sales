@@ -11,6 +11,7 @@ const userRoutes = require('./routes/userRoutes');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const cors = require('cors');
 
 const { Op } = require('sequelize');
 //const userRoutes = require('./routes/userRoutes');
@@ -29,7 +30,10 @@ app.use(fileUpload());
 app.use('/admin', adminRoutes);
 app.use('/user', userRoutes);
 //  app.use('/user', userRoutes);
+//app.use(cors());
 
+const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174','https://sales-ui-eight.vercel.app'];
+app.use(cors());
 
 
 // Start the server

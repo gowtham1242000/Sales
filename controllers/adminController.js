@@ -17,10 +17,11 @@ const Item = require('../models/Items');
 const Status = require('../models/Status');
 const Location = require('../models/Locations');
 const ItemPath='/etc/ec/data/Items/';
-const userProfile='/etc/ec/data/ProfilePath/';
+const userProfile='/etc/ec/data/ProfilePath';
 const Order = require('../models/Orders');
+const OrderItem = require('../models/OrderItems');
 const ReturnItem =require('../models/ReturnItems');
-
+const userProfiles ='/ProfilePath'
 const URLpathI ='/Items';
 //admin signup
 exports.createAdmin = async (req,res) => {
@@ -124,42 +125,47 @@ exports.createUser = async (req,res) => {
 exports.createUser = async (req, res) => {
 console.log("-----------",req.body)
 console.log("-----------",req.files)
-
     try {
-        const id = req.params.id;
-        const { username, password, phoneNumber, salesManId, availability, emailId } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
+		let userProfileImage;
+        	const id = req.params.id;
+        	const { username, password, phoneNumber, salesManId, availability, emailId } = req.body;
+        	const hashedPassword = await bcrypt.hash(password, 10);
 
         // Check if the username already exists
-        const admin = await User.findOne({ where: { id: id } });
-        if (!admin) {
-            return res.status(404).json({ message: "Admin not found" });
-        }
+        	const admin = await User.findOne({ where: { id: id } });
+        	if (!admin) {
+            		return res.status(404).json({ message: "Admin not found" });
+        	}
 
-        const preuser = await User.findOne({ where: { username: username } });
-        if (preuser) {
-            return res.status(400).send({ message: "This username is already registered. Try another username." });
-        }
+        	const preuser = await User.findOne({ where: { username: username } });
+        	if (preuser) {
+            		return res.status(400).send({ message: "This username is already registered. Try another username." });
+        	}
+		if (req.files && req.files.userProfileImage) {
+    			const image = req.files.userProfileImage;
+   			const finalName = username.replace(/\s+/g, '_'); // Replace spaces with underscores in username
+    			const desImageDir = `${userProfile}/${finalName}`;
 
-        let userProfileImage;
-        if (req.files && req.files.userProfileImage) {
-            const image = req.files.userProfileImage;
-            const finalName = username.replace(/\s+/g, '_');
-            const userProfileDir = path.join(__dirname, '..', 'userProfile'); // Define the directory to store user profile images
-            if (!fs.existsSync(userProfileDir)) {
-                fs.mkdirSync(userProfileDir, { recursive: true });
-            }
-            const imageName = `${finalName}_${Date.now()}_${image.name}`;
-            const imagePath = path.join(userProfileDir, imageName);
+    // Create directory if it doesn't exist
+    		if (!fs.existsSync(desImageDir)) {
+        		fs.mkdirSync(desImageDir, { recursive: true });
+    		}
 
-            // Move the image file to the user profile directory
-            await image.mv(imagePath);
+    // Save the image file
+    		const imageName = image.name.replace(/ /g, '_'); // Replace spaces with underscores in image name
+    		const desImageFilePath = `${desImageDir}/${imageName}`;
+    		await image.mv(desImageFilePath);
 
-            // Construct the userProfileImage URL
-            userProfileImage = `https://salesman.aindriya.co.in/userProfile/original/${imageName}`;
-        }
+    // Construct the userProfileImage URL
+    	//	const userProfileImageUrl = `https://salesman.aindriya.co.in/${desImageFilePath.replace(/^\/+/, '')}`;
+	 const userProfileImageUrl = `https://salesman.aindriya.co.in${desImageFilePath.replace(userProfile, userProfiles)}`;
+    // Save the URL to userProfileImage field in the database
+   		 userProfileImage = userProfileImageUrl;
+		}
+	
 
-        const user = await User.create({
+console.log("userProfileImage---------",userProfileImage)
+const user = await User.create({
             username: username,
             password: hashedPassword,
             role: 'user',
@@ -225,7 +231,8 @@ exports.createItem = async (req, res) => {
 
         // Save original image
         const image = req.files.image;
-        const originalImagePath = `${originalImageDir}/${image.name}`;
+        const imageName =image.name.replace(/ /g, '_');
+        const originalImagePath = `${originalImageDir}/${imageName}`;
         await image.mv(originalImagePath);
 
         // Create thumbnails directory if it doesn't exist
@@ -236,7 +243,7 @@ exports.createItem = async (req, res) => {
 
         // Determine file extension and resize accordingly
         const extension = path.extname(image.name).toLowerCase();
-        const thumbnailImagePath = `${thumbnailDir}/${path.basename(image.name, extension)}.webp`;
+        const thumbnailImagePath = `${thumbnailDir}/${path.basename(imageName, extension)}.webp`;
         let pipeline;
 
         if (extension === '.png' || extension === '.jpg' || extension === '.jpeg') {
@@ -253,8 +260,8 @@ exports.createItem = async (req, res) => {
         await pipeline;
 
         // Generate URL for original and thumbnail images
-        const originalImageUrl = `https://64.227.139.72${URLpathI}/original/${image.name}`;
-        const thumbnailImageUrl = `https://64.227.139.72${URLpathI}/thumbnails/${path.basename(image.name, extension)}.webp`;
+        const originalImageUrl = `https://salesman.aindriya.co.in/${URLpathI}/original/${imageName}`;
+        const thumbnailImageUrl = `https://salesman.aindriya.co.in/${URLpathI}/thumbnails/${path.basename(imageName, extension)}.webp`;
 
         // Create the item
         const item = await Item.create({
@@ -534,27 +541,144 @@ console.log("+++++++")
 //const Location = require('../models/location');
 
 exports.getDashboardDetails =async (req,res)=>{
-	try{
-	const TotalRevenue =await Order.sum('totalAmount');
-	const TotalSalesOrder = await Order.count();
-	const TotalReturnOrder = await ReturnItem.count();
-	const TotalShop = await Shop.count();
-	const userOrderCounts = await Order.findAll({
-    attributes: [
-        'userId', // Select the userId
-        [sequelize.fn('COUNT', sequelize.col('userId')), 'orderCount'] // Count the number of orders for each userId
-    ],
-    group: ['userId'], // Group by userId
-    include: [{
-        model: User, // Include the User model to fetch username and email
-        attributes: ['username', 'emailId'] // Select username and email
-    }]
+	try {
+    		const TotalRevenue = await Order.sum('totalAmount');
+    		const TotalSalesOrder = await Order.count();
+    		const TotalReturnOrder = await ReturnItem.count();
+    		const TotalShop = await Shop.count();
+    		const DailySalesCount = await Order.findAll();
+    		const getRecentOrder = await Order.findAll({
+            		limit: 4,
+            		order: [['createdAt', 'DESC']] // Assuming 'createdAt' is the timestamp of order creation
+        	}); 
+		const userIds = getRecentOrder.map(order => order.userId);
+		const usersData = await User.findAll({
+           		 where: {
+                	 id: userIds
+            		}
+        	});
+		const recentOrdersData = getRecentOrder.map(order => {
+            		const user = usersData.find(user => user.id === order.userId);
+            		return {
+                		orderId: order.id,
+                		createdAt: order.createdAt,
+                		totalAmount: order.totalAmount,
+                		user: {
+                    			userId: user.id,
+                    			userName: user.username,
+                    			userProfile: user.userProfileImage
+                		}
+            		};
+        	});
+		 const ordersByDate = {};
+	
+   		DailySalesCount.forEach(order => {
+        		console.log("order----------", order);
+        		const date = order.createdAt.toDateString();
+        		console.log("date----------", date);
+        		if (!ordersByDate[date]) {
+            			ordersByDate[date] = [];
+        		}
+        		ordersByDate[date].push(order);
+   	 	});
+
+    		const dailyOrderCounts = {};
+    		Object.keys(ordersByDate).forEach(date => {
+        		dailyOrderCounts[date] = ordersByDate[date].length;
+    		});
+
+		const allOrders = await Order.findAll();
+
+        // Step 2: Group the orders by userId and count the number of orders for each userId
+        const orderCountsByUser = allOrders.reduce((acc, order) => {
+            if (order.userId in acc) {
+                acc[order.userId]++;
+            } else {
+                acc[order.userId] = 1;
+            }
+            return acc;
+        }, {});
+
+        // Step 3: Convert the object to an array of { userId, orderCount }
+        const orderCountsArray = Object.entries(orderCountsByUser).map(([userId, orderCount]) => ({
+            userId: userId,
+            orderCount: orderCount
+        }));
+
+        // Step 4: Sort the array based on the order count in descending order
+        orderCountsArray.sort((a, b) => b.orderCount - a.orderCount);
+
+        // Step 5: Return the top-selling salespeople list with user information
+        const topsellingSalesMen = await Promise.all(orderCountsArray.slice(0, 10).map(async (entry) => {
+            const user = await User.findByPk(entry.userId); // Assuming you have a User model
+            return {
+                userId: user.id,
+                userName: user.username,
+                email: user.emailId,
+                userProfile: user.userProfileImage,
+                orderCount: entry.orderCount
+            };
+        }));
+
+	const allOrderItems = await OrderItem.findAll();
+
+        // Step 2: Group the order items by item ID and sum the quantity for each item
+        const itemQuantities = allOrderItems.reduce((acc, orderItem) => {
+            if (orderItem.itemId in acc) {
+                acc[orderItem.itemId] += orderItem.quantity;
+            } else {
+                acc[orderItem.itemId] = orderItem.quantity;
+            }
+            return acc;
+        }, {});
+
+        // Step 3: Retrieve item information (name, image, price) based on the item IDs
+        const itemIds = Object.keys(itemQuantities);
+console.log("itemIds---------",itemIds 	)
+        const itemsInfo = await Item.findAll({
+            where: {
+                id: itemIds
+            }
+        });
+
+console.log("itemsInfo---------",itemsInfo)
+        // Step 4: Calculate the total price for each item (item count * item price)
+	const topItems = itemIds.map(itemId => {
+    const quantity = itemQuantities[itemId];
+    console.log("quantity--------", quantity);
+    // Find the item by comparing the ID as a number
+    const item = itemsInfo.find(item => item.id === parseInt(itemId));
+    console.log("item----------", itemId);
+    if (item) {
+        const totalPrice = quantity * item.price;
+        return {
+            itemId: parseInt(itemId), // Convert itemId to a number
+            itemName: item.name,
+            itemImage: item.image,
+            itemPrice: item.price,
+            itemCount: quantity,
+            totalPrice: totalPrice
+        };
+    } else {
+console.log("-----------entering--------")
+        // Handle the case when item is not found
+        console.error(`Item with ID ${itemId} not found`);
+        return null; // Or you can return some default values
+    }
 });
 
-console.log("userOrderCount------------",userOrderCounts);
-return 
-	res.status(201).json({TotalRevenue,TotalSalesOrder,TotalReturnOrder,TotalShop});
-	}catch(error){
-		console.log("error",error)
+// Remove any null values from topItems array
+const filteredTopItems = topItems.filter(item => item !== null);
+
+// Step 5: Sort the items based on the total price in descending order
+filteredTopItems.sort((a, b) => b.totalPrice - a.totalPrice);
+
+// Step 6: Return the top 4 selling items in the response
+const topFourItems = filteredTopItems.slice(0, 4);
+	res.status(201).json({TotalRevenue,TotalSalesOrder,TotalReturnOrder,TotalShop,topsellingSalesMen,topFourItems,recentOrdersData});
+
+	} catch (error) {
+    		console.log("error", error);
+    		res.status(500).json({ error: "An error occurred while processing the request" });
 	}
 }

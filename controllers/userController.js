@@ -362,7 +362,6 @@ exports.createOrder = async (req, res) => {
 
 //updateOrder
 exports.updateOrder = async (req, res) => {
-console.log("req.body0----------",req.body);
     try {
         const orderId = req.params.id;
         console.log("orderId-------", orderId);
@@ -447,12 +446,29 @@ console.log("req.body0----------",req.body);
             }
         }
 */
+// Update or remove order items
+// Update or remove order items
+console.log("itemId------------",itemId,itemId.length)
 if (itemId && itemId.length > 0) {
+console.log("************")
+    // Find all existing items associated with the order
+    const existingItems = await OrderItem.findAll({ where: { orderId } });
+    const existingItemIds = existingItems.map(item => item.itemId);
+
+    // Identify items to be removed
+    const itemsToRemove = existingItems.filter(item => !itemId.includes(item.itemId));
+
+    // Remove items not present in the updated list
+    for (let item of itemsToRemove) {
+        await item.destroy();
+    }
+
+    // Iterate through the updated list of items
     for (let i = 0; i < itemId.length; i++) {
         const existingOrderItem = await OrderItem.findOne({ where: { orderId, itemId: itemId[i] } });
-
+console.log("existingOrderItem================",existingOrderItem)
         if (existingOrderItem) {
-            // If order item already exists, update its details
+            // If order item exists, update its details
             await existingOrderItem.update({
                 quantity: quantity[i],
                 yourearing,
@@ -474,6 +490,14 @@ if (itemId && itemId.length > 0) {
                 createdAt: new Date(),
                 updatedAt: new Date()
             });
+        }
+    }
+
+    // Now, let's check if there are any remaining items in the database that are not in the updated list
+    const remainingItems = existingItems.filter(item => itemId.includes(item.itemId));
+    for (let item of remainingItems) {
+        if (!itemId.includes(item.itemId)) {
+            await item.destroy();
         }
     }
 }
@@ -608,7 +632,7 @@ exports.getshopitem = async (req,res) => {
 }
 
 //getOrderslist
-
+//+-
 exports.getOrders = async (req, res) => {
 /*    try {
         const userId = req.params.userId;
@@ -669,9 +693,9 @@ try {
     const totalPages = Math.ceil(totalCount / pageSize);
 
     let routes, locationNames, shopIds, orders;
-console.log("routeId-------",routeId)
+console.log("routeId----111---",routeId)
     if (userId && routeId) {
-console.log("$$$$$$$$$$$$-------")
+console.log("$$$$$$$$$$$$-------",routeId)
         routes = await Location.findAll({
             where: {
                 id: routeId // Check if the userId is contained in the salesManId array
@@ -679,7 +703,9 @@ console.log("$$$$$$$$$$$$-------")
         });
         locationNames = routes.map(route => route.LocationName);
     } else{
-console.log("^^^^^^^^^^^----------")
+console.log("^^^^^^^^^^^----------",userId)
+	user =await User.findAll({where:{id:userId}})
+console.log("user--------",userId)
         routes = await Location.findAll({
             where: {
                 salesManId: {
@@ -689,7 +715,7 @@ console.log("^^^^^^^^^^^----------")
         });
         locationNames = routes.map(route => route.LocationName);
     }
-console.log("routes-------",routes)
+console.log("routes-----entering the else block--",routes);
     const shops = await Shop.findAll({ where: { location: { [Sequelize.Op.in]: locationNames } } });
     shopIds = shops.map(shop => shop.id);
 console.log("shop----------",shopIds)
@@ -1234,7 +1260,7 @@ exports.getDeliveries = async (req, res) => {
         const offset = (page - 1) * pageSize;
 
         // Query the database for orders that match the given userId and status (Delivered or Invoiced)
-        const orders = await Order.findAndCountAll({
+         orders = await Order.findAndCountAll({
             where: {
                 userId: userId, // Use the extracted userId without any additional parameters
                 status: ['Delivered', 'Invoiced']
@@ -1242,24 +1268,30 @@ exports.getDeliveries = async (req, res) => {
             limit: pageSize, // Limit the number of records returned per page
             offset: offset // Offset to skip records based on the page number
         });
+	const totalPages = Math.ceil(orders.count / pageSize);
 
+	const formattedOrders = await Promise.all(orders.rows.map(async order => {
+	const orderItems = await OrderItem.findAll({ where: { orderId: order.id } });
+        const itemCount = orderItems.length;
+        
         // Calculate total pages
-        const totalPages = Math.ceil(orders.count / pageSize);
+        //const totalPages = Math.ceil(orders.count / pageSize);
 
         // Format the orders
-        const formattedOrders = orders.rows.map(order => {
+        //const formattedOrders = orders.rows.map(order => {
             const formattedCreatedAt = new Date(order.createdAt).toISOString().split('T')[0];
             const formattedUpdatedAt = new Date(order.updatedAt).toISOString().split('T')[0];
 
             return {
                 ...order.toJSON(),
                 createdAt: formattedCreatedAt,
-                updatedAt: formattedUpdatedAt
+                updatedAt: formattedUpdatedAt,
+                itemCount: itemCount
             };
-        });
-
+        //});
+	}))
         // Send the paginated orders along with total pages and total orders as a response
-        res.json({ 
+        res.status(200).json({ 
             message: 'Getting Orders data Successfully', 
             orders: formattedOrders,
             totalPages: totalPages,
@@ -1279,7 +1311,7 @@ exports.createReturnOrder = async (req, res) => {
         // Check if the order exists
         const order = await Order.findOne({ where: { shopId: shopId } });
         if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
+            return res.status(404).json({ message: 'No Orders found from this Shop' });
         }
         const shop = await Shop.findOne({ where: { id: shopId } });
 
@@ -1290,7 +1322,7 @@ console.log("shop-----------",shop)
 const returnOrder = await ReturnItem.create({
     userId: req.params.id,
     statusId: statusId,
-    //orderNo: orderNo,
+    orderNo: orderNo,
     shopId: shopId,
     shopName: shop.shopname,
     yourearing: yourearning,
@@ -1797,7 +1829,9 @@ console.log("endDate---------------",endDate)
 exports.filterbydate = async function (req, res) {
     try {
         const filter = req.query.filter;
-        let startDate, endDate, shopName;
+        let startDate, endDate;
+console.log("req.query--------",req.query);
+const shopName = req.query.shopName === "''" ? undefined : req.query.shopName;
 
         switch (filter) {
             case 'today':
@@ -1811,7 +1845,7 @@ exports.filterbydate = async function (req, res) {
             case 'oneMonth':
                 startDate = getOneMonthAgoDate();
                 endDate = getTodayDate(); // Today's date
-                shopName = req.query.shopName; // Get shopName from query parameters
+        //        shopName = req.query.shopName; // Get shopName from query parameters
                 break;
             case 'custom':
                 // Assuming req.body contains start and end dates for custom filter
@@ -1858,12 +1892,13 @@ function getOneMonthAgoDate() {
     return oneMonthAgo.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
 }
 
-// Modify the callAPIWithDateRange function to accept queryCriteria object
-async function callAPIWithDateRange(queryCriteria) {
+/*async function callAPIWithDateRange(queryCriteria) {
     const { startDate, endDate, shopName } = queryCriteria;
-console.log("startdate-----",startDate);
-console.log("endDate",endDate);
     try {
+        // Define the start and end dates with time zone offset
+        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
+        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
+
         // Query the Order table for orders within the specified date range and shopName
         const filteredOrders = await Order.findAll({
             attributes: [
@@ -1873,7 +1908,8 @@ console.log("endDate",endDate);
             ],
             where: {
                 createdAt: {
-                    [Op.between]: [startDate, endDate]
+                    [Op.gte]: startDateTime,
+                    [Op.lte]: endDateTime
                 },
                 ...(shopName && { shopName }) // Include shopName condition only if it's provided
             }
@@ -1886,7 +1922,48 @@ console.log("endDate",endDate);
         console.error('Error fetching orders:', error);
         throw new Error('Failed to fetch orders');
     }
+}*/
+
+
+async function callAPIWithDateRange(queryCriteria) {
+    const { startDate, endDate, shopName } = queryCriteria;
+    try {
+        // Define the start and end dates with time zone offset
+        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
+        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
+
+        // Define the filter object with createdAt and optional shopName conditions
+        const filter = {
+            createdAt: {
+                [Op.gte]: startDateTime,
+                [Op.lte]: endDateTime
+            }
+        };
+
+        // If shopName is provided and not an empty string, add it to the filter
+        if (shopName && shopName !== '') {
+            filter.shopName = shopName;
+        }
+
+        // Query the Order table for orders within the specified date range and optional shopName
+        const filteredOrders = await Order.findAll({
+            attributes: [
+                'id', 'expecteddate', 'shopId', 'shopName', 'userId', 'orderNo',
+                'yourearing', 'totalAmount', 'status', 'statusid', 'orderType',
+                'invoice', 'createdAt', 'updatedAt'
+            ],
+            where: filter
+        });
+
+        // Return the filtered orders
+        return filteredOrders;
+    } catch (error) {
+        // Handle any errors
+        console.error('Error fetching orders:', error);
+        throw new Error('Failed to fetch orders');
+    }
 }
+
 
 //getAllUser
 exports.getAllUser = async (req,res)=>{

@@ -14,4 +14,5 @@ const ReturnOrderItem = sequelize.define('ReturnOrderItem', {
 ReturnOrderItem.belongsTo(Item, { foreignKey: 'itemId', targetKey: 'id' });
 ReturnOrderItem.belongsTo(User, { foreignKey: 'userId', targetKey: 'id' });
 
+
 module.exports = ReturnOrderItem;
