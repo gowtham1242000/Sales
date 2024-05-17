@@ -42,4 +42,6 @@ router.get('/getAllUser',userController.getAllUser);
 router.get('/getUserRoute/:userId',userController.getUserRoute);
 router.get('/getAllShops',userController.getAllShops);
 router.get('/getReturnOrderList/:userId/:routeId?', userController.getReturnOrderList);
+router.get('/returnOrderssearch',userController.returnOrderssearch);
+router.get('/getReturnOrderDetails/:id',userController.getReturnOrderDetails);
 module.exports = router;

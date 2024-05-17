@@ -27,7 +27,6 @@ const Location = require('../models/Locations');
 exports.testing = async (req,res)=>{
 	try{
 	const item = await Item.findAll();
-	console.log("Item--------",item)
 	}catch{
 
 	}
@@ -38,11 +37,9 @@ exports.userSignin = async (req,res) => {
     try{
         const { username, password } = req.body;
         const user =await User.findOne({ where: { username:username}});
-        console.log("user----------",user)
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Invalid username or password' });
         }
-        console.log("secretKey------",secretKey)
         const token = jwt.sign({ userId: user.id }, secretKey,{ expiresIn:'360d'});
         res.status(200).json({ message: 'Sign-in successful', token: token,user });  
     }catch(error){
@@ -53,69 +50,93 @@ exports.userSignin = async (req,res) => {
 }
 
 
-
 const { extname, basename } = require("path");
 exports.createShop = async (req, res) => {
-    console.log("req.files-------", req.files);
-    console.log("req.body---------",req.body)
     try {
-        const images = req.files && req.files.shopImage; // Assuming the key for images is 'shopImage'
-        const id = req.params.id;
+        //const images = req.files.shopImage; // Assuming the key for images is 'shopImage'
+        	const id = req.params.id;
+		//let shopImages,thumbnailImages;
+        	const { shopname, location, address, emailId, contectnumber, locationCode, shopCode, availability } = req.body;
+		const shopImages = [];
+                const thumbnailImages = [];
+                 let imagesArray = [];
 
-        const { shopname, location, address, emailId, contectnumber, locationCode, shopCode, availability } = req.body;
-        console.log("locationCode--------",locationCode)
+		const parsedLocationCode = JSON.parse(locationCode);
 
-	const parsedLocationCode = JSON.parse(locationCode);
-
-        const user = await User.findOne({ where: { id: id } });
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
+        	const user = await User.findOne({ where: { id: id } });
+        	if (!user) {
+            		return res.status(404).json({ message: "User not found" });
+        	}
 
         // Create directory for original images if it doesn't exist
-        const originalImageDir = `/etc/ec/data/shopImage/original`;
-        if (!fs.existsSync(originalImageDir)) {
-            fs.mkdirSync(originalImageDir, { recursive: true });
-        }
+        	if(req.files){
+        		const images = req.files.shopImage;
+			const originalImageDir = `/etc/ec/data/shopImage/original`;
+        		if (!fs.existsSync(originalImageDir)) {
+            			fs.mkdirSync(originalImageDir, { recursive: true });
+        		}
 
         // Create directory for thumbnail images if it doesn't exist
-        const thumbnailDir = `/etc/ec/data/shopImage/thumbnails`;
-        if (!fs.existsSync(thumbnailDir)) {
-            fs.mkdirSync(thumbnailDir, { recursive: true });
-        }
+        		const thumbnailDir = `/etc/ec/data/shopImage/thumbnails`;
+        		if (!fs.existsSync(thumbnailDir)) {
+            			fs.mkdirSync(thumbnailDir, { recursive: true });
+        		}
 
         // Initialize arrays for image URLs
-        const shopImages = [];
-        const thumbnailImages = [];
-	console.log("Images-------",images);
+        	//	const shopImages = [];
+        	//	const thumbnailImages = [];
+		//	let imagesArray = [];
+
+// Check if images is an array
+			if (Array.isArray(images)) {
+    // If images is already an array, use it directly
+    				imagesArray = images;
+			} else if (typeof images === 'object') {
+    // If images is an object, convert it to an array
+    				imagesArray = [images];
+			}
+
+// Now imagesArray is always an array, containing the images
      
+	
+
         // Loop through each image if images are provided
-        if (images && Array.isArray(images)) {
-            for (const image of images) {
+        		if (imagesArray && Array.isArray(imagesArray)) {
+	console.log("entering the if condition----------")
+            			for (const image of imagesArray) {
                 // Generate file names for original and thumbnail images
-                const originalImageName = `${Date.now()}_${image.name}`;
-                const thumbnailImageName = `${Date.now()}_${basename(image.name, extname(image.name))}.webp`;
+                			const originalImageName = `${Date.now()}_${image.name}`;
+                			const thumbnailImageName = `${Date.now()}_${basename(image.name, extname(image.name))}.webp`;
 
                 // Generate file paths for original and thumbnail images
-                const originalImagePath = `${originalImageDir}/${originalImageName}`;
-                const thumbnailImagePath = `${thumbnailDir}/${thumbnailImageName}`;
+                			const originalImagePath = `${originalImageDir}/${originalImageName}`;
+                			const thumbnailImagePath = `${thumbnailDir}/${thumbnailImageName}`;
 
                 // Save original image
-                await image.mv(originalImagePath);
+                			await image.mv(originalImagePath);
 
                 // Resize and save thumbnail image using Sharp
-                await sharp(originalImagePath)
-                    .resize({ width: 200, height: 200 })
-                    .toFormat('webp')
-                    .webp({ quality: 80 })
-                    .toFile(thumbnailImagePath);
+                			await sharp(originalImagePath)
+                    			.resize({ width: 200, height: 200 })
+                    			.toFormat('webp')
+                    			.webp({ quality: 80 })
+                    			.toFile(thumbnailImagePath);
 
                 // Push the URLs to the arrays
-                shopImages.push(`https://salesman.aindriya.co.in/shopImage/original/${originalImageName}`);
-                thumbnailImages.push(`https://salesman.aindriya.co.in/shopImage/thumbnails/${thumbnailImageName}`);
-            }
-        }
-
+                			shopImages.push(`https://salesman.aindriya.co.in/shopImage/original/${originalImageName}`);
+                			thumbnailImages.push(`https://salesman.aindriya.co.in/shopImage/thumbnails/${thumbnailImageName}`);
+				console.log("shopImages---------",shopImages);
+				console.log("thumbnailImages-------",thumbnailImages);
+            		}
+        		}
+			}else{
+				console.log("entering the null function---------");
+				const shopImages = null;
+				const thumbnailImages =null;
+			}
+		console.log("shopImages-----------------",shopImages);
+		console.log("thumbnailImages-----------",thumbnailImages);
+//return
         // Create a new shop associated with the user
         const shop = await Shop.create({
             shopname,
@@ -138,6 +159,7 @@ exports.createShop = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 //updateShop
 exports.updateShop = async (req, res) => {
@@ -182,6 +204,7 @@ exports.updateShop = async (req, res) => {
 
         // Handle image update if a new image is provided
         if (req.files && req.files.shopImage) {
+console.log("req.files--------",req.files)
             const images = req.files.shopImage; // Assuming the key for images is 'shopImage'
 
             if (!Array.isArray(images)) {
@@ -203,8 +226,6 @@ exports.updateShop = async (req, res) => {
                 // Generate URL for original and thumbnail images
                 const originalImageUrl = `https://salesman.aindriya.co.in${shopImagePath}/original/${image.name}`;
                 const thumbnailImageUrl = `https://salesman.aindriya.co.in${shopImagePath}/thumbnails/${basename(image.name, extension)}.webp`;
-		console.log("originalImageUrl-----------",originalImageUrl);
-		console.log("thumbnailImageUrl--------",thumbnailImageUrl);
                 // Push the URLs to the arrays
                 shopImages.push(originalImageUrl);
                 thumbnailImages.push(thumbnailImageUrl);
@@ -281,7 +302,6 @@ async function saveInvoice(invoice, orderNo) {
 //createOrder
 exports.createOrder = async (req, res) => {
     const id = req.params.id;
-   console.log("req.body-----------",req.body)
     try {
         const { expecteddate, shopId, orderType, orderNo, status, yourearing, totalAmount, itemId, quantity } = req.body;
         const user = await User.findOne({ where: { id: id } });
@@ -325,7 +345,6 @@ exports.createOrder = async (req, res) => {
             updatedAt: new Date()
         });
 
-        console.log("order---------", order);
 
         // Create order items
         const orderItems = [];
@@ -335,7 +354,6 @@ exports.createOrder = async (req, res) => {
                 console.log(`Item with ID ${itemId[i]} not found. Skipping...`);
                 continue;
             }
-	console.log("-----------------------------",order.orderNo)
             // Create the order item
             const orderItem = await OrderItem.create({
                 orderId: order.id,
@@ -349,7 +367,6 @@ exports.createOrder = async (req, res) => {
                 updatedAt: new Date()
             });
 
-            console.log("OrderItem created successfully", orderItem);
             orderItems.push(orderItem);
         }
 
@@ -364,14 +381,11 @@ exports.createOrder = async (req, res) => {
 exports.updateOrder = async (req, res) => {
     try {
         const orderId = req.params.id;
-        console.log("orderId-------", orderId);
         const { expecteddate, shopId, orderType, status, yourearing, totalAmount, itemId, quantity } = req.body;
-	console.log("quantity---------",quantity);
         // Verify that the order exists
         const order = await Order.findOne({ where: { id: orderId } });
-        console.log("order----------", order);
         const user = await User.findOne({ where: { id: order.userId } });
-
+	console.log("req.body------",req.body)
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
@@ -390,9 +404,12 @@ exports.updateOrder = async (req, res) => {
         }
 
         if (status !== undefined) {
+console.log("entering the if condition in status")
 	    const sts = await Status.findAll({ where: { id: status } });
             var data = sts[0].dataValues.status;
+console.log("data-----------------------",data)
             order.status = data;
+	    order.statusid=status;
         }
 
         if (yourearing !== undefined) {
@@ -673,7 +690,9 @@ console.log("routes-----entering the else block--",routes);
     shopIds = shops.map(shop => shop.id);
 console.log("shop----------",shopIds)
     orders = await Order.findAll({
-        where: { shopId: shopIds },
+        where: { shopId: shopIds,
+		status: ['Ordered', 'Draft']
+		},
         // include: User,
         order: [['createdAt', 'DESC']], // Assuming User is the associated model
         limit: pageSize, // Limit the number of records returned per page
@@ -741,7 +760,6 @@ try {
 
     // Calculate total number of shops
    const totalShops = await Shop.count();
-console.log("totalShops-------",totalShops);
     // Calculate total pages
     const totalPages = Math.ceil(totalShops / pageSize);
 let matchedShops ;
@@ -778,18 +796,15 @@ let matchedShops ;
     // If userId is provided, fetch locations for the corresponding salesManId
     if (req.params.userId) {
         const userId = req.params.userId;
-console.log("userId-----------",userId);        
         // Fetch locations where salesManId matches userId
         const locations = await Location.findAll({
             where: {
                 salesManId: { [Sequelize.Op.contains]: [userId] }
             }
         });
-console.log("loactions-------",locations);
 
 	const locationNames = locations.map(location => location.dataValues.LocationName);
 
-console.log("locationNames--------",locationNames)
 // Find shops with matching LocationName
 //const matchedShops = enrichedShops.filter(shop => locationNames.includes(shop.location));
 //console.log("matchedShops--------",matchedShops)
@@ -799,10 +814,8 @@ console.log("locationNames--------",locationNames)
             if (locationMatch) {
                 shop.locationName = locationMatch.LocationName;
             }
-console.log("-0----------0--",locationMatch)
         });
  matchedShops = enrichedShops.filter(shop => locationNames.includes(shop.location));
-console.log("matchedShops--------",matchedShops)
 
     }
 
@@ -843,8 +856,6 @@ exports.getShopsDetails = async (req, res) => {
         shop.dataValues.shopImage = convertToJSON(shop.shopImage);
         shop.dataValues.thumbnailimage = convertToJSON(shop.thumbnailimage);
 
-        console.log("Converted shopImage-------", shop.shopImage);
-        console.log("Converted thumbnailimage-------", shop.thumbnailimage);
 
         // Find all orders associated with the shop
         const orders = await Order.findAll({ where: { shopId: id } });
@@ -952,7 +963,6 @@ try {
 exports.getStatus =async (req,res) =>{
     try{
         const status = await Status.findAll();
-        console.log("status------",status);
         res.status(200).json({message:'This are the status details',status})
     }catch(error){
         console.log("getstatus----error",error)
@@ -1107,19 +1117,14 @@ exports.getEarningOrderItems = async (req,res) =>{
 	const orderNo =req.params.orderNo;
 	const orderItems =await OrderItem.findAll({ where: { orderNo } });
 	const earningOrderItems = [];
-console.log("orderItems----------",orderItems);
 
 	 for (const orderItem of orderItems) {
             const { itemId, quantity } = orderItem;
-console.log("quantity---------",quantity);
 	const item = await Item.findOne({ where: { id: itemId } });
-console.log("item.----------",item)
 	if(item){
 		const itemName = item.name;
 		const itemCommission = item.itemcommission;
 		const totalAmount= itemCommission * quantity;
-console.log("------totalAmount-----------",totalAmount);
-console.log("itemCommission---------quantity",quantity,itemCommission)
 		earningOrderItems.push({
                     itemName,
                     quantity,
@@ -1193,7 +1198,6 @@ exports.getTotalItemSales = async (req,res) =>{
 const userId = 2;
 calculateTotalPriceByUser(userId)
     .then(totalPriceArray => {
-        console.log('Total Price:', totalPriceArray);
 	if(totalPriceArray) return res.status(201).json(totalPriceArray)
     })
     .catch(error => {
@@ -1268,7 +1272,6 @@ exports.createReturnOrder = async (req, res) => {
         }
         const shop = await Shop.findOne({ where: { id: shopId } });
 
-console.log("shop-----------",shop)
 //console.log("statusId, orderNo, shopId, itemId, totalAmount, yourearning, quantity,",statusId, orderNo, shopId, itemId, totalAmount, yourearning, quantity, shop.shopName)
 //return
         // Create the return order
@@ -1293,9 +1296,7 @@ const returnOrder = await ReturnItem.create({
             if (!item) {
                 console.log(`Item with ID ${itemId[i]} not found. Skipping...`);
                 continue;
-console.log("returnOrder.orderNo--------------------------",returnOrder.orderNo)            }
-
-console.log("returnOrder.orderNo--------------------------",returnOrder.orderNo)
+	   }
             // Create the return order item
             const returnOrderItem = await ReturnOrderItem.create({
                 userId: req.params.id,
@@ -1306,11 +1307,10 @@ console.log("returnOrder.orderNo--------------------------",returnOrder.orderNo)
                 createdAt: new Date(),
                 updatedAt: new Date()
             });
-
-            console.log("ReturnOrderItem created successfully", returnOrderItem);
+	   console.log("ReturnOrderItem created successfully", returnOrderItem);
             returnOrderItems.push(returnOrderItem);
         }
-
+     
         res.status(201).json({ message: "Return order created successfully" });
     } catch (error) {
         console.error("Error creating return order:", error);
@@ -1361,7 +1361,6 @@ try {
 }
 
 exports.getReturnOrders = async (req, res) => {
-    console.log("req.params.userId---------", req.params.userId);
     try {
         const userId = req.params.userId; // Assuming the userId is passed in the request parameters
         // Fetch return orders
@@ -1391,7 +1390,6 @@ exports.getReturnOrders = async (req, res) => {
         returnNoCount[returnNo] = (returnNoCount[returnNo] || 0) + 1; // Increment the count for returnNo
             });
 		const totalCount = Object.values(returnNoCount).reduce((acc, count) => acc + count, 0);
-console.log("totalItemReturned--------",totalCount)
             // Create a new object with the desired properties, including totalQuantityReturned and status
             return {
                 ...returnOrder.toJSON(), // Convert returnOrder to JSON
@@ -1483,14 +1481,12 @@ exports.searchAndFilterShops = async (req, res) => {
 console.log("******************")
     try {
         const { shopname, fromDate, toDate } = req.query;
-        console.log("shopname--------", shopname);
 
         // Define filters for each type of model based on the column names
         const shopFilter = {};
         const returnItemAndOrderFilter = {};
 
         if (shopname) {
-            console.log("--entering", shopname);
             shopFilter['shopname'] = { [Op.like]: `%${shopname}%` }; // Assuming 'Shop' model uses 'shopname'
             returnItemAndOrderFilter['shopName'] = { [Op.like]: `%${shopname}%` }; // 'ReturnItem' and 'Order' use 'shopName'
         }
@@ -1653,7 +1649,6 @@ exports.getShopsRouteFilter = async (req, res) => {
                 const orderItems = await OrderItem.findAll({
                     where: { orderId: order.id }
                 });
-console.log("orderItems---------------",orderItems)
 
                 formattedOrders.push({
                     id: order.id,
@@ -1676,7 +1671,6 @@ console.log("orderItems---------------",orderItems)
                 });
             }
         }
-        console.log("formattedOrders----------------", formattedOrders);
         res.json(formattedOrders);
     } catch (error) {
         console.error('Error:', error);
@@ -1783,7 +1777,6 @@ exports.filterbydate = async function (req, res) {
     try {
         const filter = req.query.filter;
         let startDate, endDate;
-console.log("req.query--------",req.query);
 const shopName = req.query.shopName === "''" ? undefined : req.query.shopName;
 
         switch (filter) {
@@ -1808,14 +1801,11 @@ const shopName = req.query.shopName === "''" ? undefined : req.query.shopName;
             default:
                 return res.status(400).json({ error: 'Invalid filter option' });
         }
-console.log("startDate-------",startDate)
-console.log("endDate--------",endDate)
         const queryCriteria = {
             startDate,
             endDate,
             shopName
         };
-console.log("queryCriteria-------",queryCriteria)
         // Call your API with startDate, endDate, and shopName to retrieve filtered data
         const filteredData = await callAPIWithDateRange(queryCriteria);
 
@@ -1828,7 +1818,6 @@ console.log("queryCriteria-------",queryCriteria)
 
 // Helper function to get the date one month ago
 function getTodayDate() {
-console.log("enter the function or not")
     const today = new Date();
     return today.toISOString().split('T')[0]; // Extract YYYY-MM-DD from ISO string
 }
@@ -1933,7 +1922,6 @@ console.log("error",error)
 ///getUserRoute
 
 exports.getUserRoute = async (req,res) =>{
-console.log("req.params.userId---------",req.params)
 const userId =req.params.userId;
 try{
 const routes = await Location.findAll({
@@ -1975,7 +1963,6 @@ try {
     let routes, locationNames, shopIds, returnOrders;
 
     if (userId && routeId) {
-console.log("routeId-------",routeId);
         routes = await Location.findAll({
             where: {
                 id: routeId // Check if the userId is contained in the salesManId array
@@ -2003,7 +1990,6 @@ console.log("routeId-------",routeId);
         limit: pageSize, // Limit the number of records returned per page
         offset: offset // Offset to skip records based on the page number
     });
-console.log("returnOrders---",returnOrders);
 //return
     // Format the return orders with createdAt and updatedAt dates and return items
     const formattedReturnOrders = await Promise.all(returnOrders.map(async returnOrder => {
@@ -2025,3 +2011,98 @@ console.log("returnOrders---",returnOrders);
     res.status(500).json({ error: 'Internal server error' });
 }
 }
+
+
+// Assuming you have already set up your Express server and Sequelize models
+
+// Define your API endpoint for searching return orders by shopName
+exports.returnOrderssearch = async (req, res) => {
+	try {
+        // Extract search query parameters from the request
+        const { keyword } = req.query;
+        // Define search criteria
+        const searchCriteria = {
+            [Op.or]: [
+                { shopName: { [Op.iLike]: `%${keyword}%` } } // Case-insensitive search for item name
+        //        { description: { [Op.iLike]: `%${keyword}%` } } // Case-insensitive search for item description
+            ]
+        };
+
+        // Perform the search using Sequelize
+        const searchResults = await ReturnItem.findAll({
+            where: searchCriteria
+        });
+
+        // Send the search results as a response
+        res.json(searchResults);
+    } catch (error) {
+
+        console.error('Error performing wsearch:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+
+};
+
+
+exports.getReturnOrderDetails = async (req, res) => {
+    try {
+        const returnOrderId = req.params.id;
+
+        // Find the return order by ID
+        const returnOrder = await ReturnItem.findOne({ where: { id: returnOrderId } });
+
+        if (!returnOrder) {
+            return res.status(404).json({ message: "Return order not found" });
+        }
+
+        // Find the return order items associated with the return order
+        const returnOrderItems = await ReturnOrderItem.findAll({ where: { returnOrderId: returnOrderId } });
+
+        // Fetch additional details for each return order item
+        const returnOrderItemsWithDetails = await Promise.all(returnOrderItems.map(async (returnOrderItem) => {
+            // Find the item details for the return order item
+            const item = await Item.findOne({ where: { id: returnOrderItem.itemId } });
+            const itemTotalPrice = item.price * returnOrderItem.quantityReturned;
+
+            return {
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                itemcommission: item.itemcommission,
+                totalPrice: itemTotalPrice,
+                quantityCount: returnOrderItem.quantity,
+                image: item.image
+            };
+        }));
+
+        // Calculate total amount for return order
+        let totalAmount = 0;
+        returnOrderItems.forEach(returnOrderItem => {
+            totalAmount += returnOrderItem.dataValues.totalAmount || 0;
+        });
+
+        // Find the shop details for the return order
+        const shop = await Shop.findOne({ where: { id: returnOrder.shopId } });
+	const status = await Status.findOne({where:{id:returnOrder.statusId}});
+        // Prepare the response object
+        const response = {
+            id: returnOrder.id,
+            returnOrderNo: returnOrder.orderNo,
+            deliveryDate: returnOrder.deliveryDate, // Assuming deliveryDate is the delivery date
+            shopName: shop.shopname,
+            shopId: returnOrder.shopId, // Assuming shopName is the correct attribute
+            returnStatus: status.status,
+            statusId: returnOrder.statusId,
+            invoice: returnOrder.invoice,
+            returnOrderItems: returnOrderItemsWithDetails,
+            totalAmount: returnOrder.totalAmount
+        };
+
+        // Return success response with return order details
+        return res.status(200).json(response);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+

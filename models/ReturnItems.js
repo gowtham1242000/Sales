@@ -21,4 +21,5 @@ ReturnItem.belongsTo(Shop, { foreignKey: 'shopId', targetKey: 'id' });
 ReturnItem.belongsTo(User, { foreignKey: 'userId', targetKey: 'id' });
 ReturnItem.hasMany(ReturnOrderItem, { foreignKey: 'returnOrderId' });
 
+ReturnItem.belongsTo(Shop, { foreignKey: 'shopId' });
 module.exports = ReturnItem;
